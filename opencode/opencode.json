@@ -1,0 +1,48 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcp_hugging_face": {
+      "type": "remote",
+      "enabled": false,
+      "url": "https://huggingface.co/mcp?login",
+      "oauth": {}
+    },
+    "serena": {
+      "type": "local",
+      "enabled": true,
+      "command": ["serena", "start-mcp-server", "--project-from-cwd"],
+      "timeout": 10000
+    },
+    "context-mode": {
+      "type": "local",
+      "command": ["context-mode"]
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-f5804b2a-6ac7-4014-a70d-ff5cc8026427"
+      },
+      "enabled": true,
+      "timeout": 10000
+    },
+     "mcp_grep": {
+      "type": "local",
+      "command": "bash /home/rongzhou/.mcp-grep-shim",
+      "args": [],
+      "enabled": true,
+      "timeout": 60000
+    },
+    "mcp_github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "enabled": false,
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {file:~/.config/opencode/.secrets/github-pat}"
+      }
+    }
+  },
+  "plugin": ["context-mode"],
+
+}

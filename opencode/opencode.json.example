@@ -1,0 +1,37 @@
+"mcp": {
+
+    "Github": {
+      "type": "remote",
+      "url": "xxx",
+      "oauth": {}
+    },
+    "fetch": {
+      "type": "local",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "enabled": true
+    },
+    "context7": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "@mseep/context7-mcp"],
+      "enabled": true,
+      "environment": {
+        "CONTEXT7_API_KEY": "xxxx"
+      }
+    },
+    "": {
+      "type": "local",
+      "command": "",
+      "args": [""],
+      "enabled": true
+    },
+    "": {
+      "type": "remote",
+      "url": "",
+      "oauth": {}
+    },
+
+}
+
+
