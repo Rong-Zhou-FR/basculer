@@ -93,8 +93,8 @@ Use structured format:
 ```
 
 ## Memory & State
-- Check for existing review standards: `list_memories` → `read_memory` (look for "review", "quality", "security")
-- After significant findings, use `write_memory` to document patterns
+- Check for existing review standards: `serena_list_memories` → `serena_read_memory` (look for "review", "quality", "security")
+- After significant findings, use `serena_write_memory` to document patterns
 
 ## IMPORTANT - Do NOT Use These Tools
 Your permissions are defined in the YAML block above - stay within those bounds.

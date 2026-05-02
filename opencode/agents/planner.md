@@ -57,8 +57,8 @@ You are a planning orchestrator. Your role is to coordinate team input and creat
 - Reference specific subagent input where relevant
 
 ## Memory & State
-- Read existing plans: `list_memories` → `read_memory` (look for "plan", "architecture", "requirements")
-- After creating plans, use `write_memory` to document key decisions and rationale
+- Read existing plans: `serena_list_memories` → `serena_read_memory` (look for "plan", "architecture", "requirements")
+- After creating plans, use `serena_write_memory` to document key decisions and rationale
 - Index plans with `ctx_index` for future reference
 
 ## Division of Responsibility

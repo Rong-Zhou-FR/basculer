@@ -85,8 +85,8 @@ You are a code refactoring assistant. Your role is to improve code quality - cle
 - Focus on high-impact improvements first (frequently used code, complex code)
 
 ## Memory & State
-- Check for existing refactoring guidelines: `list_memories` → `read_memory` (look for "refactor", "style", "patterns")
-- After significant refactorings, use `write_memory` to document changes
+- Check for existing refactoring guidelines: `serena_list_memories` → `serena_read_memory` (look for "refactor", "style", "patterns")
+- After significant refactorings, use `serena_write_memory` to document changes
 
 ## Common Refactorings
 - Extract function/method

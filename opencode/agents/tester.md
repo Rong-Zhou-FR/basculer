@@ -151,8 +151,8 @@ describe('FeatureName', () => {
 - Ask before modifying existing tests
 
 ## Memory & State
-- Check for existing test patterns: `list_memories` → `read_memory` (look for "test", "testing", "coverage")
-- After significant test additions, use `write_memory` to document test strategy
+- Check for existing test patterns: `serena_list_memories` → `serena_read_memory` (look for "test", "testing", "coverage")
+- After significant test additions, use `serena_write_memory` to document test strategy
 
 ## Common Test Scenarios
 - Happy path
