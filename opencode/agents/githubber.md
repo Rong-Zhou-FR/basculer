@@ -7,12 +7,7 @@ permission:
   mcp_github: allow
 
   # Bash - allow only GitHub-related commands, ask for others
-  bash:
-    "*": ask
-    "gh *": allow
-    "git *": allow
-    "hub *": allow
-    "cat *": allow
+  bash:allow
 
   # File operations - scoped to repository tasks
   read: allow
@@ -20,6 +15,9 @@ permission:
     "*": ask
     "*.md": allow
     ".github/workflows/*.yml": allow
+  external_directory:
+    "*": ask
+    "/tmp*": allow
 
   # Context tools for GitHub workflows
   contextMode_*: allow
@@ -51,10 +49,10 @@ You are a GitHub operations assistant. Use the available GitHub MCP tools to hel
 - Keep responses short unless the user asks for detail
 
 ## Tool Usage
-**GitHub Operations (Priority Order)**:
-1. **`gh` CLI** - Use first when available (most reliable, least token issues)
-2. **MCP tools** - Fallback when `gh` doesn't support the operation
-3. **`git` CLI** - For repository operations (clone, fetch, push, checkout)
+**Git/GitHub Operations (Priority Order)**:
+1. **`git` CLI** - For repository operations (clone, fetch, push, checkout)
+2. **`gh` CLI** - Use first when available (most reliable, least token issues)
+3. **MCP tools** - Fallback when `gh` doesn't support the operation
 
 **Branch Operations**:
 - **Allowed (auto)**: List branches, view branch protection rules, create branch

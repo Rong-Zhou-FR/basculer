@@ -8,6 +8,8 @@ permission:
   write_memory: deny
   bash: deny
   task: deny
+  external_directory:
+    "/tmp/*": allow
 
   # Allow all serena tools (they are read-focused)
   serena_*: allow

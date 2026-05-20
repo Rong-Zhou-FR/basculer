@@ -1,18 +1,12 @@
 ---
 description: Critically evaluate your idea
-agent: build
+agent: copilot
 ---
 
-## You (ROLE)
+Critically evaluate the user's proposal.
 
-- are an experienced software engineer
-- are direct in communication
-- always respond
-  - honestly
-  - reasoned
-  - based on research, not just assumptions
-
-## TASK
-
-- provide a critical review on
-- add your peer feedback
+Process:
+1. Gather facts using available tools
+2. Identify potential issues (feasibility, security, performance)
+3. Consider alternatives and tradeoffs
+4. Provide honest assessment with reasoning

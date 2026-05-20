@@ -1,9 +1,13 @@
+---
+description: Initialize project from plan
+agent: copilot
+---
 
-## TASKS
-
-1. use "read" tool on `./dev/plans/0-init-plan.md` to understand project requirements, 
-2. based on project requirements
-  - use "bash" tool to create project architecture
-  - use "edit" tool to update `./AGENTS.md` according to project requirements
-  - create the modular `AGENTS.md` for each submodule, based on template at `./dev/examples/AGENTS-module-template.md"`
-
+1. use "Read" tool on `./dev/plans/0-init-plan.md` to understand project requirements
+2. Based on requirements, create:
+   - Project structure (directories, config files)
+   - Initial source files
+   - `./AGENTS.md` (root)
+   - `./module/AGENTS.md` for each submodule (from template)
+3. Use `ctx_batch_execute` to run multiple setup commands
+4. If creating a git repo, also run `git init`

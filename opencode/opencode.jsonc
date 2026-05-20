@@ -3,7 +3,7 @@
   "mcp": {
     "mcp_hugging_face": {
       "type": "remote",
-      "enabled": false,
+      "enabled": true,
       "url": "https://huggingface.co/mcp?login",
       "oauth": {}
     },
@@ -13,7 +13,7 @@
       "command": ["serena", "start-mcp-server", "--project-from-cwd"],
       "timeout": 10000
     },
-    "context-mode": {
+    "contextMode": {
       "type": "local",
       "command": ["context-mode"]
     },
@@ -36,7 +36,7 @@
     "mcp_github": {
       "type": "remote",
       "url": "https://api.githubcopilot.com/mcp/",
-      "enabled": false,
+      "enabled": true,
       "oauth": false,
       "headers": {
         "Authorization": "Bearer {file:~/.config/opencode/.secrets/github-pat}"
@@ -45,4 +45,50 @@
   },
   "plugin": ["context-mode"],
 
+  "provider": {
+    "rr": {
+      "models": {},
+      "options": {
+        "baseURL": "http://localhost:8000/v1"
+      }
+    }
+  },
+
+  "agent": {
+    "copilot": {
+    },
+    "auditor": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "explore": {
+      "model": "opencode/minimax-m2.5-free"
+    },
+    "tester": {
+      "model": "opencode/minimax-m2.5-free"
+    },
+  //   "debugger": {
+  //     "model": "opencode/minimax-m2.5-free"
+  //   },
+  //   "reviewer": {
+  //     "model": "opencode/minimax-m2.5-free"
+  //   },
+  //   "refactorer": {
+  //     "model": "opencode/minimax-m2.5-free"
+  //   },
+    "architect": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+  //   "planner": {
+  //     "model": "opencode/minimax-m2.5-free"
+  //   },
+    "expert": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "githubber": {
+      "model": "opencode/minimax-m2.5-free"
+    },
+    "huggingfacer": {
+      "model": "opencode/minimax-m2.5-free"
+    }
+  }
 }

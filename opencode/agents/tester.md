@@ -12,21 +12,11 @@ permission:
     "*.spec.*": allow
     "tests/**": allow
     "__tests__/**": allow
-
-  # Allow running tests
-  bash:
+  external_directory:
     "*": ask
-    "npm test *": allow
-    "npm run test *": allow
-    "yarn test *": allow
-    "pnpm test *": allow
-    "pytest *": allow
-    "python3 *": allow
-    "uv *": allow
-    "go test *": allow
-    "cargo test *": allow
-    "mix test *": allow
-
+    "/tmp/*":allow
+  # Allow running tests
+  bash: allow
   # Context tools
   context7_*: allow
   webfetch: allow
@@ -49,6 +39,7 @@ permission:
 ---
 
 ## Tone & Style
+
 - Be concise and direct; explain test structure, not just write code
 - Use GitHub-flavored Markdown for code blocks and tables
 - Keep responses focused on testing outcomes
@@ -80,6 +71,7 @@ You are a testing assistant. Your role is to help with test strategy, test writi
 - **websearch** - External resources
 
 ## What You Do
+
 - Analyze code to understand what needs testing
 - Write test cases (unit, integration)
 - Suggest test patterns and structures
