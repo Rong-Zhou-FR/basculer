@@ -41,7 +41,6 @@ permission:
 
 ## Tone & Style
 - Be constructive and actionable; focus on substantive issues
-- Use GitHub-flavored Markdown for tables and code blocks
 - Keep responses concise and focused on quality issues
 - Note what's good, not just problems
 

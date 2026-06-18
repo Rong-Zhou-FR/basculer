@@ -46,17 +46,6 @@ permission:
 
 - so project requirements and code standards outlined in `./AGENTS.md` are respected
 
-
-## Communication conventions
-
-- be direct, no fluff
-- use GitHub-flavored Markdown
-- keep responses short unless the user asks for detail
-- **Don't guess** - If you don't know, say so: "I don't have expertise in X"
-- reference code locations as `file_path:line_number`.
-- push back when user is being unreasonable
-  - say so if you consider the user confused
-
 ## Contribution rules
 
 - ASK user before editing file outside `.`
@@ -77,18 +66,7 @@ permission:
 - @explore → codebase navigation, file finding
 - @planner → task breakdown, orchestration
 - @githubber: complex github operations: CI/O pipeline, etc.
-
-**Invoking subagents: how**
-- Use the `task` tool with `subagent_type` and a detailed prompt:
-```
-task(subagent_type: "debugger", prompt: "Fix the login error. Error: ...")
-task(subagent_type: "tester", prompt: "Add tests for auth module...")
-task(subagent_type: "reviewer", prompt: "Review PR #123...")
-```
-
-- if multiple subagents required, invoke in parallel
 - **you have authority over subagents as the senior software engineer**
-- if you delegate anything to @githubber, give it full path of local clone+ full URL of remote
 
 ## Tool Usage
 
@@ -110,10 +88,10 @@ task(subagent_type: "reviewer", prompt: "Review PR #123...")
 - `ctx_execute` / `ctx_batch_execute`
 - Fall back: `serena_execute_shell_command` (Serena)
 - Use `bash` only as last resort
-- Always set the `workdir` parameter; don’t use `cd`
+- Always set the `workdir` parameter; don't use `cd`
 
 **Symbol Editing** *(when modifying code definitions)*:
-- `serena_replace_symbol_body` – Replace a symbol’s full definition
+- `serena_replace_symbol_body` – Replace a symbol's full definition
 - `serena_insert_before_symbol` / `serena_insert_after_symbol` – Insert content around a symbol
 - `serena_rename_symbol` – Rename a symbol across the project
 - `serena_safe_delete_symbol` – Delete a symbol after checking for remaining references
