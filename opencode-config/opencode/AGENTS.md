@@ -111,17 +111,22 @@ Always set the `workdir` parameter; don't use `cd`
 - Use modern, efficient, well-supported dependency managers (e.g., uv for Python)
 
 **Workflow:**
-- BEFORE starting: understand the task, read memories (`serena_list_memories`), plan with `todowrite`, consult @architect for structural changes
-- IF unrelated uncommitted changes exist, stash them; signal to user when finished
-- WHILE coding: don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
-- AFTER implementation: ask @reviewer and @tester for review of 200+ line changes; run tests; fix failures
+
+**Before starting:**
+- Understand the task, read memories (`serena_list_memories` → `serena_read_memory`), plan with `todowrite`, consult `@architect` for structural changes
+- Ensure you are not working on `main` — use feature branches
+- If there are unrelated uncommitted changes or partial edits, stash them; signal to user when finished
+
+**While coding:**
+- Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
+
+**After implementation:**
+- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests; fix failures
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
+- Mention relevant GitHub issues (`#N`) in commit messages
 - Don't mix unrelated changes in one commit
 
-**Git conventions:**
-- Don't work directly on `main` — use feature branches
-- If repo is dirty with partial edits, stash them
-- If repo has completed functional units, commit them and merge to main
-- Mention relevant GitHub issues (#N) in commit messages
-- After completing a functional unit, update AGENTS.md, README.md, and related GitHub issues
+**After completing a functional unit:**
+- Merge to main
+- Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment
