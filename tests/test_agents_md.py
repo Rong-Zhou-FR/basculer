@@ -1,9 +1,9 @@
 """Tests for opencode-config/opencode/AGENTS.md structure.
 
-Verifies the merge of Git conventions into the Workflow section:
-- No standalone "Git conventions" subsection
+Verifies:
+- A standalone "Git conventions" subsection exists with commit rules
 - No orphaned "- IF" line
-- All previous git rules present under the correct Workflow phases
+- All workflow phases present and correctly structured
 - No duplicate stash rules
 """
 
@@ -18,12 +18,19 @@ def test_file_exists():
     assert AGENTS_MD.is_file(), f"{AGENTS_MD} not found"
 
 
-def test_no_git_conventions_section():
-    """The standalone 'Git conventions' subsection must be removed."""
+def test_git_conventions_section_present():
+    """A standalone 'Git conventions' subsection must exist with commit rules."""
     content = AGENTS_MD.read_text()
-    # It should not appear as a subsection header under Development Conventions
-    assert "**Git conventions:**" not in content, (
-        "'**Git conventions:**' subsection header still present"
+    assert "**Git conventions:**" in content, (
+        "'**Git conventions:**' subsection header missing"
+    )
+    # Must mention Conventional Commits (the format reference)
+    assert "Conventional Commits" in content, (
+        "Conventional Commits rule missing from Git conventions"
+    )
+    # Must mention GitHub issue references
+    assert "#N" in content, (
+        "GitHub issue reference rule missing"
     )
 
 
@@ -54,18 +61,18 @@ def test_while_coding_phase():
 
 
 def test_after_implementation_phase():
-    """'After implementation' phase must exist with commit rules."""
+    """'After implementation' phase must exist with review + commit."""
     content = AGENTS_MD.read_text()
     assert "**After implementation:**" in content, (
         "'**After implementation:**' phase header missing"
     )
-    # Conventional Commits
-    assert "Conventional Commits" in content, (
-        "Conventional Commits link missing from After implementation phase"
+    # Must mention asking reviewer/tester
+    assert "@reviewer" in content and "@tester" in content, (
+        "Reviewer/tester delegation rule missing"
     )
-    # Issue references
-    assert "#N" in content or "(`#N`)" in content, (
-        "GitHub issue reference rule missing"
+    # Must mention committing changes (via git conventions section)
+    assert "commit changes" in content, (
+        "'commit changes' rule missing from After implementation phase"
     )
 
 

@@ -106,23 +106,29 @@ Always set the `workdir` parameter; don't use `cd`
 - Variable names and comments in plain English
 - Use modern, efficient, well-supported dependency managers (e.g., uv for Python)
 
+**Git conventions:**
+- Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
+- Mention relevant GitHub issues (`#N`) in commit messages
+- Don't mix unrelated changes in one commit
+
 **Workflow:**
 
 **Before starting:**
-- Understand the task, read memories (`serena_list_memories` → `serena_read_memory`), plan with `todowrite`, consult `@architect` for structural changes
+- Understand the task, read memories (`serena_list_memories` → `serena_read_memory`), plan with `todowrite`, consult `@architect` for architectural changes
+  - do NOT consult @architect for simple patches with no architectural impact. You are competent.
 - Ensure you are not working on `main` — use feature branches
-- If there are unrelated uncommitted changes or partial edits, stash them; signal to user when finished
+- If there are unrelated uncommitted changes
+  - if they look like partial edits, stash them; restore and signal to user when finished
+  - if they are implemented functional units that should have already been committed, commit them with an appropriate conventional commit message
 
 **While coding:**
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
 
 **After implementation:**
 - Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests; fix failures
-- Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
-- Mention relevant GitHub issues (`#N`) in commit messages
-- Don't mix unrelated changes in one commit
+- commit changes
 
 **After completing a functional unit:**
 - Merge to main
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
-- Close completed issues with a closing comment
+- Close completed issues with a closing comment, update partially solved issues with progress
