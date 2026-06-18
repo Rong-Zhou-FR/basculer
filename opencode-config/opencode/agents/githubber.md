@@ -20,7 +20,6 @@ permission:
     "/tmp*": allow
 
   # Context tools for GitHub workflows
-  contextMode_*: allow
   context7_*: allow
   webfetch: allow
   websearch: allow

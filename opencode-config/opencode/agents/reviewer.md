@@ -19,7 +19,6 @@ permission:
 
   # Allow context tools for research
   context7_*: allow
-  contextMode_*: allow
   webfetch: allow
   websearch: allow
 
@@ -62,7 +61,7 @@ You are a code review assistant. Your role is to analyze code and provide constr
 
 **For research:**
 - **context7_*** - Framework/library documentation
-- **contextMode_*** - Search indexed session/project docs
+
 - **websearch** / **webfetch** - External resources
 
 ## Review Guidelines

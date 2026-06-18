@@ -20,7 +20,6 @@ permission:
   plan_exit:
     "*": allow
   # MCP fine-grained control
-  contextMode_*: allow
   context7_*: allow
   serena_*: allow
 
