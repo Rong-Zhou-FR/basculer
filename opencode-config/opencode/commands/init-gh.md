@@ -1,5 +1,5 @@
 ---
-description: initialize AGENTS.md and project structure after planning
+description: initialise git and push to Github
 agent: copilot
 ---
 
