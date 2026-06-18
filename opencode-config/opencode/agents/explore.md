@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: Fast codebase exploration using serena and contextMode tools
+description: Fast codebase exploration using serena tools
 permission:
   # Deny all modification tools
   edit: deny
@@ -13,9 +13,6 @@ permission:
 
   # Allow all serena tools (they are read-focused)
   serena_*: allow
-
-  # Allow contextMode tools for indexed search
-  contextMode_*: allow
 
   # DENY: This subagent is uniquely for codebase exploration
   mcp_hugging_face_*: deny

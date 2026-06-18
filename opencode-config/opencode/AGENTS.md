@@ -28,9 +28,7 @@ Always set the `workdir` parameter; don't use `cd`
 - `serena_write_memory`, `serena_read_memory`, `serena_edit_memory`, `serena_delete_memory`, `serena_rename_memory`, `serena_list_memories` – manage persistent memory files
 
 **Documentation**:
-- first try `ctx_search` to search indexed documentation
-- `ctx_fetch_and_index` – index new external docs for searching
-- last resort: `context7_resolve-library-id` + `context7_query-docs` – Up-to-date library docs
+- `context7_resolve-library-id` + `context7_query-docs` – Search up-to-date library documentation
 
 **Configuration**:
 - `serena_activate_project` – Activate a Serena project
@@ -42,15 +40,13 @@ Always set the `workdir` parameter; don't use `cd`
 - `serena_rename_symbol` – Rename a symbol across the project
 - `serena_safe_delete_symbol` – Delete a symbol after checking for remaining references
 
-**Command Execution** *(prefer ctx_* for efficiency)*:
-- `ctx_execute` / `ctx_batch_execute`
-- Fall back: `serena_execute_shell_command` (Serena)
-- Use `bash` only as last resort
-- Always set the `workdir` parameter; don't use `cd`
+**Command Execution**:
+- `serena_execute_shell_command` – Execute shell commands
+- `bash` – Run shell commands (use workdir parameter; don't use `cd`)
 
 **General**:
 - Parallelize independent tool calls
-- Always check for the appropriate Serena/ctx tool before falling back to generic system tools
+- Always check for the appropriate Serena tool before falling back to generic system tools
 
 ## Delegation Workflow
 **How to delegate effectively:**
@@ -76,7 +72,7 @@ Always set the `workdir` parameter; don't use `cd`
 ## Memory & State
 - Check for existing relevant knowledge: `serena_list_memories` → `serena_read_memory`
 - After significant decisions or findings, use `serena_write_memory` to persist information
-- Use `ctx_search` to find previous discussions on the topic
+- Use `serena_list_memories` / `serena_read_memory` to find previous discussions on the topic
 
 ## Error Handling
 - If the request is unclear, ask for clarification

@@ -13,10 +13,6 @@
       "command": ["serena", "start-mcp-server", "--project-from-cwd"],
       "timeout": 10000
     },
-    "contextMode": {
-      "type": "local",
-      "command": ["context-mode"]
-    },
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
@@ -43,8 +39,6 @@
       }
     }
   },
-  "plugin": ["context-mode"],
-
   "provider": {
     "rr": {
       "models": {},

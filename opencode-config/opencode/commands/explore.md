@@ -11,7 +11,5 @@ Use these efficient tools:
 - `serena_get_symbols_overview`: Get symbol overview of a file
 - `serena_find_symbol`: Find classes, methods by name
 - `serena_find_referencing_symbols`: Find symbol references
-- `contextMode_ctx_search`: Search indexed documentation
-- `contextMode_ctx_batch_execute`: Run multiple commands and search
 
 Provide clear, concise answers with file paths and relevant code snippets.

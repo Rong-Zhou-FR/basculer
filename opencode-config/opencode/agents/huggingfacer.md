@@ -18,7 +18,6 @@ permission:
     "*.md": ask  # Require ask for all writes including .md files
 
   # Context tools for HF documentation
-  contextMode_*: allow
   context7_*: allow
   webfetch: allow
   websearch: allow
