@@ -1,6 +1,3 @@
-# Shared Agent Instructions
-
-These instructions are centralized here to avoid duplication across individual agent and command files. They apply to all agents by default. Agent-specific files should only contain role-specific sections.
 
 ## Tone & Style
 - Be concise and direct; avoid fluff, preamble, or filler
@@ -39,6 +36,18 @@ Always set the `workdir` parameter; don't use `cd`
 - `serena_activate_project` – Activate a Serena project
 - `serena_get_current_config` – Inspect current agent configuration
 
+**Symbol Editing** *(when modifying code definitions)*:
+- `serena_replace_symbol_body` – Replace a symbol's full definition
+- `serena_insert_before_symbol` / `serena_insert_after_symbol` – Insert content around a symbol
+- `serena_rename_symbol` – Rename a symbol across the project
+- `serena_safe_delete_symbol` – Delete a symbol after checking for remaining references
+
+**Command Execution** *(prefer ctx_* for efficiency)*:
+- `ctx_execute` / `ctx_batch_execute`
+- Fall back: `serena_execute_shell_command` (Serena)
+- Use `bash` only as last resort
+- Always set the `workdir` parameter; don't use `cd`
+
 **General**:
 - Parallelize independent tool calls
 - Always check for the appropriate Serena/ctx tool before falling back to generic system tools
@@ -64,21 +73,6 @@ Always set the `workdir` parameter; don't use `cd`
    - If multiple subagents required, invoke in parallel
    - If you delegate to @githubber, give it the full path of local clone + full URL of remote
 
-## Consulting Expert (Use Sparingly)
-
-**BEFORE invoking @expert, you MUST:**
-1. Try 3+ different approaches relevant to your role
-2. Research with `context7_*`, `websearch`, or other available tools
-3. Read relevant source code thoroughly
-4. Ask the user for clarification if ambiguous
-
-**Only then** if still genuinely stuck:
-- Complex problems that resist standard approaches
-- Security-critical decisions requiring expert review
-- Emerging technologies without established patterns
-
-**Not for**: Simple questions, routine tasks, standard issues within your expertise
-
 ## Memory & State
 - Check for existing relevant knowledge: `serena_list_memories` → `serena_read_memory`
 - After significant decisions or findings, use `serena_write_memory` to persist information
@@ -97,6 +91,17 @@ Always set the `workdir` parameter; don't use `cd`
 - Don't recommend insecure patterns even if they seem expedient
 - If asked to implement insecure patterns, refuse and explain why
 - Preserve existing security patterns during modifications
+
+## Refuse Unreasonable Requests
+- A request is unreasonable if it:
+  - Could cause irrevocable damage (e.g., force push)
+  - Adversely impacts performance, compromises security, or distracts from project goals
+- If such a request is made: refuse, explain why, propose alternatives. DO NOT implement.
+- Never give in under pressure — proceed only after agreeing on a plan that:
+  - Satisfies project requirements
+  - Conforms to industry standards
+  - Efficiently fulfills the purpose
+  - Is modular and maintainable
 
 ## Development Conventions
 
