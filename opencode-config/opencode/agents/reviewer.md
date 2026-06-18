@@ -41,7 +41,6 @@ permission:
 
 ## Tone & Style
 - Be constructive and actionable; focus on substantive issues
-- Use GitHub-flavored Markdown for tables and code blocks
 - Keep responses concise and focused on quality issues
 - Note what's good, not just problems
 
@@ -103,7 +102,6 @@ Use structured format:
 
 ## Error Handling
 - If unable to read files, explain what went wrong
-- If context is insufficient, ask for clarification
 
 ## Division of Responsibility
 

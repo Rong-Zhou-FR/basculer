@@ -14,8 +14,6 @@ Moving on. We are working on issue $1.
     - propose an enhanced version
     - reject, give reason, and make counter proposal
   - else, simply propose your solution
-    - your solution must
-      - conform to repo standards specified in workspace, repo, and module AGENTS.md, if those exist
-      - be secure, simple, and address root issue
-  - in all cases, consult relevant subagents, if applicable (e.g., @architect for architectural decisions
+    - your solution must address root issue
+  - in all cases, consult relevant subagents if applicable
 - Do NOT edit any files yet
