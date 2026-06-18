@@ -1,0 +1,95 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcp_hugging_face": {
+      "type": "remote",
+      "enabled": false,
+      "url": "https://huggingface.co/mcp?login",
+      "oauth": {}
+    },
+    "serena": {
+      "type": "local",
+      "enabled": true,
+      "command": ["serena", "start-mcp-server", "--project-from-cwd"],
+      "timeout": 10000
+    },
+    "contextMode": {
+      "type": "local",
+      "command": ["context-mode"]
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-f5804b2a-6ac7-4014-a70d-ff5cc8026427"
+      },
+      "enabled": true,
+      "timeout": 10000
+    },
+     "mcp_grep": {
+      "type": "local",
+      "command": "bash /home/rongzhou/.mcp-grep-shim",
+      "args": [],
+      "enabled": true,
+      "timeout": 60000
+    },
+    "mcp_github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {file:~/.config/opencode/.secrets/github-pat}"
+      }
+    }
+  },
+  "plugin": ["context-mode"],
+
+  "provider": {
+    "rr": {
+      "models": {},
+      "options": {
+        "baseURL": "http://localhost:8000/v1"
+      }
+    }
+  },
+
+  "agent": {
+    "copilot": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "auditor": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    // "explore": {
+    //   "model": "opencode/deepseek-v4-flash-free"
+    // },
+    // "tester": {
+    //   "model": "opencode/deepseek-v4-flash-free"
+    // },
+  //   "debugger": {
+  //     "model": "opencode/deepseek-v4-flash-free"
+  //   },
+  //   "reviewer": {
+  //     "model": "opencode/deepseek-v4-flash-free"
+  //   },
+  //   "refactorer": {
+  //     "model": "opencode/deepseek-v4-flash-free"
+  //   },
+    "architect": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+  //   "planner": {
+  //     "model": "opencode/deepseek-v4-flash-free"
+  //   },
+    "expert": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "githubber": {
+      "model": "github-copilot/claude-haiku-4.5"
+    },
+    "huggingfacer": {
+      "model": "opencode/deepseek-v4-flash-free"
+    }
+  }
+}

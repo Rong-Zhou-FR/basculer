@@ -67,7 +67,7 @@ function M.setup()
 
         -- Capture leading spaces (indentation)
         local indent = original_line:match("^%s*") or ""
-        local extra_indent = "  "   -- 2 spaces for nested level
+        local extra_indent = ""   -- 2 spaces for nested level
 
         -- Trim the original line (remove indentation before processing)
         local trimmed_line = original_line:gsub("^%s+", "")

@@ -70,7 +70,7 @@ node_id() {
   while [[ "$s" == *__* ]]; do
     s="${s//__/_}"
   done
-
+  while [[ $s == *_ ]]; do s=${s%_}; done
   echo "$s"
 
 }
@@ -224,7 +224,7 @@ snac() {
 # $@ : remaining args forwarded
 # ------------------------------------------------------------
 snay() {
-  A semantika nodo aldoni "$(yt_id "$1")" -k "${@:2}"
+  A semantika nodo aldoni "$(yt_id "$1")" -k "${@:2}" -t YT_FILMETO
 }
 
 # ------------------------------------------------------------
@@ -267,4 +267,18 @@ snab() {
 # ------------------------------------------------------------
 snas() {
   A semantika nodo aldoni "$(song_node_id "$1")" -e "$1" -t KANTO -k "${@:2}"
+}
+
+# ------------------------------------------------------------
+# snayc — create YouTube channel node.
+#
+# Sanitised ID:  YT<sanitized-channel-name> (e.g. "YTVERITASIUM")
+# Label:         channel name as provided
+#
+# $1 : YouTube channel name (e.g. "@veritasium" or "Veritasium")
+# $@ : remaining args forwarded (e.g. -y for auto‑confirm)
+# stdout : CLI output from A‑semantika
+# ------------------------------------------------------------
+snayc() {
+  A semantika nodo aldoni "YT$(node_id "_$1")" -e "eo:$1 (Youtube Kanalo)" -e "en:$1 (Youtube channel)" -e "fr:$1 (chaîne Youtube)" -k "${@:2}"
 }
