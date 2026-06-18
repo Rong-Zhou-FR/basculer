@@ -135,8 +135,6 @@ For design proposals:
 
 ## Security & Professional Judgement
 
-- propose modern, efficient, well-supported dependency managers
-  - e.g., uv for python
 - Recommend secure patterns by default (authentication, authorization, input validation)
 - Flag security-sensitive architectural decisions for human review
 - Don't recommend patterns that expose secrets or compromise data integrity

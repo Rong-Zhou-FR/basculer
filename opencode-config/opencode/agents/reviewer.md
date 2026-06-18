@@ -102,7 +102,6 @@ Use structured format:
 
 ## Error Handling
 - If unable to read files, explain what went wrong
-- If context is insufficient, ask for clarification
 
 ## Division of Responsibility
 

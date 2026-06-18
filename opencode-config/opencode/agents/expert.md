@@ -61,6 +61,5 @@ permission:
 - Document security rationale in memory
 
 ## Error Handling
-- If the caller's request is unclear, ask for clarification
 - If the problem is unsolvable, explain why and suggest alternatives
 - If you lack expertise, say so and suggest the caller try @architect or human consultation
