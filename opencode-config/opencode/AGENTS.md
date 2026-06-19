@@ -111,6 +111,13 @@ Always set the `workdir` parameter; don't use `cd`
 - Mention relevant GitHub issues (`#N`) in commit messages
 - Don't mix unrelated changes in one commit
 
+**Interacting with external APIs:**
+
+- many external APIs are rate-limited
+- must minimise number of calls to avoid overloading the APIs
+  - cache data properly
+  - incremental update: conserve partial downloads in case of interruption
+
 **Workflow:**
 
 **Before starting:**
@@ -132,3 +139,6 @@ Always set the `workdir` parameter; don't use `cd`
 - Merge to main
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment, update partially solved issues with progress
+- if the fix/feature concern a live deployment (website, live webapp)
+  - if major structural changes, invite user to evaluate the change (show them how: CLI commands for dev preview, etc.)
+  - otherwise deploy it directly to live after final verification
