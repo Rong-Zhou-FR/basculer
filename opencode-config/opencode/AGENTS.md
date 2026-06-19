@@ -118,7 +118,7 @@ Always set the `workdir` parameter; don't use `cd`
   - cache data properly
   - incremental update: conserve partial downloads in case of interruption
 - when user asks you to write script to fetch data from external APIs
-  - run the script yourself and fetch ALL the requested data (not just a sample) if you can
+  - run the script yourself and fetch ALL the requested data (not just a sample) if you can (preferred)
   - if API keys/user interaction required, tell user clearly what they need to do
 
 **Workflow:**
