@@ -35,12 +35,6 @@
       "enabled": true,
       "timeout": 10000
     },
-    "mcp_grep": {
-      "type": "local",
-      "command": ["/bin/bash", "/home/rongzhou/.mcp-grep-shim"],
-      "enabled": true,
-      "timeout": 60000
-    },
     "mcp_github": {
       "type": "remote",
       "url": "https://api.githubcopilot.com/mcp/",
