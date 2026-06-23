@@ -44,6 +44,13 @@ Always set the `workdir` parameter; don't use `cd`
 - `serena_execute_shell_command` – Execute shell commands
 - `bash` – Run shell commands (use workdir parameter; don't use `cd`)
 
+**Browser Tool Pitfalls**:
+- When the browser tool connects to a local dev server, **always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
+  - **Why**: Python's `http.server` and many dev servers (nuxi, vite, webpack-dev-server) bind to IPv4 (`0.0.0.0`) by default, not IPv6 (`::`). Chromium resolves `localhost` to `::1` first (via Happy Eyeballs / system resolver), which gets `ERR_CONNECTION_REFUSED`.
+  - **Proof**: `curl http://localhost:3300/` works (curl falls back to IPv4), but `browser open http://localhost:3300/` fails. Switching to `http://127.0.0.1:3300/` fixes it.
+  - **Server-side alternative**: Bind to `::` instead of `0.0.0.0` to accept both IPv4 and IPv6: `python3 -m http.server 3300 --bind ::`
+- This is **not** a container/network isolation issue — on this system, both bash and Chromium share the same network namespace. Always verify empirically before jumping to "different container" explanations.
+
 **General**:
 - Parallelize independent tool calls
 - Always check for the appropriate Serena tool before falling back to generic system tools
@@ -143,8 +150,9 @@ Always set the `workdir` parameter; don't use `cd`
   - test the end program as user would
     - do NOT test directly via the backend: make sure the front end GUI/CLI/TUI works
       - when testing via web browser, run the tests in headless mode (`headed: false`) by default, but if you encounter an error related to visibility or authentication, you can restart the browser in headed mode (`headed: true`) to debug it
-  - do NOT pollute production DB: test with separate dummies, such as test credentials provided in .dev
-- Merge to main
+  - do NOT pollute production DB: test on a COPY
+  - if test credentials required, look for .dev
+- Merge to main and push to remote
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment, update partially solved issues with progress
 - if the fix/feature concern a live deployment (website, live webapp)
