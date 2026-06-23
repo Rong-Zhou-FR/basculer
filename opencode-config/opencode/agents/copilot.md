@@ -8,7 +8,8 @@ permission:
     "*": ask
     "/tmp*": allow
     "/home/rongzhou/.local/share/opencode/tool-output/*": allow
-    "/home/rongzhou/kodo/ronAI*": allow
+    "/home/rongzhou/kodo/*": allow
+
   read:
     "*": allow
     "*.env": ask

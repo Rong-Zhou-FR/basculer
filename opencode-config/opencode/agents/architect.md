@@ -1,7 +1,7 @@
 ---
 mode: subagent
 description: Software architecture assistant - design decisions, patterns, and tradeoffs
-temperature: 0.3
+temperature: 0.1
 permission:
   # Read-only for analysis
   read: allow
@@ -9,6 +9,11 @@ permission:
   edit: deny
   write: deny
   bash: deny
+  external_directory:
+    "*": ask
+    "/tmp*": allow
+    "/home/rongzhou/.local/share/opencode/tool-output/*": allow
+    "/home/rongzhou/kodo/*": allow
 
   # Context tools for research
   context7_*: allow

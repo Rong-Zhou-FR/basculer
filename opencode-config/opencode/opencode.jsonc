@@ -1,6 +1,19 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-browser-plugin"],
   "mcp": {
+    "paper-search": {
+      "type": "local",
+      "command": ["/home/rongzhou/.npm-global/bin/paper-search-mcp-nodejs"],
+      "environment": {
+        // "WOS_API_KEY": "your_actual_api_key_here",
+        // "PUBMED_API_KEY": "your_ncbi_api_key_here",
+        // "ELSEVIER_API_KEY": "your_elsevier_api_key",
+        // "SPRINGER_API_KEY": "your_springer_api_key",
+        // "WILEY_TDM_TOKEN": "your_wiley_tdm_token"
+      },
+      "enabled": true
+    },
     "mcp_hugging_face": {
       "type": "remote",
       "enabled": false,
@@ -22,10 +35,9 @@
       "enabled": true,
       "timeout": 10000
     },
-     "mcp_grep": {
+    "mcp_grep": {
       "type": "local",
-      "command": "bash /home/rongzhou/.mcp-grep-shim",
-      "args": [],
+      "command": ["/bin/bash", "/home/rongzhou/.mcp-grep-shim"],
       "enabled": true,
       "timeout": 60000
     },

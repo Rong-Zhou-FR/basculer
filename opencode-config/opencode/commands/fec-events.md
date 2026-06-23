@@ -4,7 +4,7 @@ agent: copilot
 ---
 ## Task: generate or complete event md file(s) in `src/content/events`
 
-- follow the detailed content writing guidelines in the project AGENTS.md (`france-en-chiffres/AGENTS.md` → Content Writing Guidelines).
+- follow the detailed content writing guidelines in [grammar-AGENTS.md](grammar-AGENTS.md).
 - treat existing events files as writing style examples
 - write an engaging intro
   - tell a story: one particular episode of a real/fictive character, prioritising common people for relatability

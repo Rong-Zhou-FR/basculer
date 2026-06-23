@@ -14,3 +14,7 @@ In addition, debug $1
   - create github issues on relevant repos to document all occurences
 3. fix problematic code/AGENTS.md/doc, etc. for ALL occurences
   - if fix required in external directory outside `.`, ask user for direction
+4. perform complete test suite
+5. user simulation testing
+  - use the program as an end user would and catch unexpected behaviours
+

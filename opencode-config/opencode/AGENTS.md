@@ -139,6 +139,11 @@ Always set the `workdir` parameter; don't use `cd`
 - commit changes
 
 **After completing a functional unit:**
+- user-simulation testing
+  - test the end program as user would
+    - do NOT test directly via the backend: make sure the front end GUI/CLI/TUI works
+      - when testing via web browser, run the tests in headless mode (`headed: false`) by default, but if you encounter an error related to visibility or authentication, you can restart the browser in headed mode (`headed: true`) to debug it
+  - do NOT pollute production DB: test with separate dummies, such as test credentials provided in .dev
 - Merge to main
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment, update partially solved issues with progress
