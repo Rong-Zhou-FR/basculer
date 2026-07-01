@@ -200,20 +200,17 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 **Data isolation:**
 - Do **not** pollute the production database — test on a COPY
 - If test credentials are required, look for `.dev` files
-- **Reset state between test runs** — Tests that create records (accounts, items) leave residue. Stale state from previous runs causes false assertion failures. Choose the approach that fits the app:
-  * **If the app auto-creates databases on startup** (no seed data to preserve): delete DB files and restart. Example:
-    ```bash
-    rm -f ~/.local/share/<app>/*.db*
-    ```
-  * **If the app has important seed/configuration data**: clone the entire data directory before tests, restore afterwards:
-    ```bash
-    cp -r ~/.local/share/<app>/ ~/tmp/<app>-backup/
-    # ... run tests, which modify the live data ...
-    rm -rf ~/.local/share/<app>/
-    mv ~/tmp/<app>-backup/ ~/.local/share/<app>/
-    ```
-  * **If the app supports a custom DB path** (check CLI flags or config), pass a temporary file:
-    ```bash
-    uv run <app> --db /tmp/test.db
-    rm -f /tmp/test.db
-    ```
+- **Clone the data directory before any test run.** This guarantees you can restore the original state regardless of what happens during testing:
+  ```bash
+  cp -r ~/.local/share/<app>/ ~/tmp/<app>-backup/
+  # ... run tests, which modify the live data ...
+  rm -rf ~/.local/share/<app>/
+  mv ~/tmp/<app>-backup/ ~/.local/share/<app>/
+  ```
+  The `~/tmp/` directory (your home, private) is used instead of `/tmp/` (world-readable on some systems).
+- **If the app supports a custom database path** (check CLI flags or config), use a temp file instead — no clone needed:
+  ```bash
+  uv run <app> --db /tmp/test.db
+  rm -f /tmp/test.db
+  ```
+  The clone approach above is the universal fallback when the app doesn't support custom DB paths.
