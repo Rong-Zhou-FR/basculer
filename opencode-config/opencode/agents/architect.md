@@ -14,6 +14,7 @@ permission:
     "/tmp*": allow
     "/home/rongzhou/.local/share/opencode/tool-output/*": allow
     "/home/rongzhou/kodo/*": allow
+    "/home/rongzhou/.config/lighterbird/*": allow
 
   # Context tools for research
   context7_*: allow

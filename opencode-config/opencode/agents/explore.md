@@ -9,7 +9,11 @@ permission:
   bash: deny
   task: deny
   external_directory:
-    "/tmp/*": allow
+    "*": ask
+    "/tmp*": allow
+    "/home/rongzhou/.local/share/opencode/tool-output/*": allow
+    "/home/rongzhou/kodo/*": allow
+    "/home/rongzhou/.config/lighterbird/*": allow
 
   # Allow all serena tools (they are read-focused)
   serena_*: allow
