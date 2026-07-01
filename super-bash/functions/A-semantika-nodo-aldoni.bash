@@ -256,6 +256,24 @@ snab() {
 }
 
 # ------------------------------------------------------------
+# snal — create book (LIBRO) node with ISBN-based ID.
+#
+# Sanitised ID:  ISBN_<sanitized-isbn>
+# Labels:        Esperanto, English, French
+# Type:          LIBRO
+#
+# $1 : ISBN number (e.g. "978-0-123-45678-9")
+# $2 : Esperanto title
+# $3 : English title
+# $4 : French title
+# $@ : remaining args forwarded (e.g. -y for auto‑confirm)
+# stdout : CLI output from A‑semantika
+# ------------------------------------------------------------
+snal() {
+  A semantika nodo aldoni "ISBN_$(node_id "$1")" -e "eo:$2" -e "en:$3" -e "fr:$4" -t LIBRO -k -y "${@:5}"
+}
+
+# ------------------------------------------------------------
 # snas — create song node.
 #
 # Sanitised ID:  MK_<first‑letter‑of‑each‑word>

@@ -43,10 +43,18 @@ Always set the `workdir` parameter; don't use `cd`
 **Command Execution**:
 - `serena_execute_shell_command` – Execute shell commands
 - `bash` – Run shell commands (use workdir parameter; don't use `cd`)
+- When the bash tool's timeout expires, **the entire shell session (and all child processes) is killed**.
+  - `command &`, `nohup command &`, and chaining (`cmd & ; sleep ; curl`) **do not** survive a timeout.
+  - **Use `setsid` to detach long-running processes** from the shell session entirely:
+    ```
+    setsid npx nuxt dev --port 3000 --host 0.0.0.0 > /tmp/nuxt-dev.log 2>&1 &
+    ```
+    `setsid` creates a new session that survives the parent shell's death.
 
 **Browser Tool**:
 - When using the browser tool to connect to a local dev server, **always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
   - **Why**: Python's `http.server` and many dev servers (nuxi, vite, webpack-dev-server) bind to IPv4 (`0.0.0.0`) by default, not IPv6 (`::`). Chromium resolves `localhost` to `::1` first (via Happy Eyeballs / system resolver), which gets `ERR_CONNECTION_REFUSED`.
+  - The server need to be detached via `setsid` as described in the [Command Execution](#command-execution) section for long-running processes
 
 **General**:
 - Parallelize independent tool calls
@@ -137,21 +145,51 @@ Always set the `workdir` parameter; don't use `cd`
 
 **While coding:**
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
+- extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
+
 
 **After implementation:**
 - Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests; fix failures
 - commit changes
 
 **After completing a functional unit:**
-- user-simulation testing
-  - test the end program as user would
-    - do NOT test directly via the backend: make sure the front end GUI/CLI/TUI works
-      - when testing via web browser, run the tests in headless mode (`headed: false`) by default, but if you encounter an error related to visibility or authentication, you can restart the browser in headed mode (`headed: true`) to debug it
-  - do NOT pollute production DB: test on a COPY
-  - if test credentials required, look for .dev
-- Merge to main and push to remote
+- Perform user-simulation testing — see [User-Simulation Testing](#user-simulation-testing) below
+- Merge to main and PUSH to remote
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment, update partially solved issues with progress
 - if the fix/feature concern a live deployment (website, live webapp)
   - if major structural changes, invite user to evaluate the change (show them how: CLI commands for dev preview, etc.)
   - otherwise deploy it directly to live after final verification
+
+## User-Simulation Testing
+
+Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
+
+**Browser testing:**
+- Run tests in **headless mode** by default (`headed: false`)
+- If you encounter errors related to visibility or authentication, restart the browser in **headed mode** (`headed: true`) to debug
+- Always use `http://127.0.0.1:<port>` when connecting to a local dev server [see Browser Tool](#browser-tool)
+- **Verify test selectors match the current UI first** — Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`).
+- **Capture browser console errors** — Add a `page.on("pageerror", ...)` handler and log errors during test runs. Console errors (especially `TypeError: Cannot read properties of undefined`) often indicate real code bugs, not test problems. Fix them even if tests pass.
+- **Design test helpers to extract structured results** — Avoid reading full page text for assertions. Target specific result containers (the active tab panel, a specific message area) instead. If the app uses a chat/conversation view, expect command history to accumulate — either clear it between tests or target the most recent result element.
+
+**Spinning up long-running dev servers:**
+- Use `setsid` to detach the process from the shell session so it survives the bash tool's timeout [see Command Execution](#command-execution)
+- Standard patterns:
+  ```
+  # Node.js (Next.js, Nuxt, Vite dev server)
+  setsid npx nuxt dev --port 3000 --host 0.0.0.0 > /tmp/nuxt-dev.log 2>&1 &
+
+  # Python (FastAPI/uvicorn) — & is a shell feature, wrap in bash -c
+  setsid bash -c 'uv run uvicorn app:create_app --factory --port 8000 > /tmp/server.log 2>&1 &'
+  ```
+- **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, kill the old server and start a new one so it serves the fresh files.
+- **Use `fuser -k <port>/tcp`** to kill only the process on the test port, instead of `pkill -f "<name>"` which can kill unrelated processes.
+
+**Data isolation:**
+- Do **not** pollute the production database — test on a COPY
+- If test credentials are required, look for `.dev` files
+- **Reset state between test runs** — Tests that create records (accounts, items) leave residue. Delete or clean the test database between runs so stale state doesn't cause false assertion failures:
+  ```
+  rm -f ~/.local/share/<app>/*.db*
+  ```
