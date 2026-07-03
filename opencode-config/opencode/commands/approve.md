@@ -3,6 +3,8 @@ description: approve AI proposed action
 agent: copilot
 ---
 
-Approved. Implement proposal. If functional updates, run user-simulation testing and fix bugs
+Approved. Implement proposal, running relevant tests throughout (not full suite).
+If functional updates, also perform user-simulation testing and fix bugs.
 
-When done, update documentation (README.md, root and module AGENTS.md...), commit, merge into main via PR, and delete feature branch after merge.
+When done, if the change affects user-facing behavior or architecture, update documentation accordingly (README.md, root AGENTS.md, module AGENTS.md...).
+Commit, merge into main via PR, and delete feature branch after merge.

@@ -17,5 +17,5 @@ In addition, debug $1
 4. run tests relevant to the code changes (not the full suite unless there is specific reason to suspect wide-ranging breakage)
 5. user simulation testing
   - use the program as an end user would and catch unexpected behaviours
-6. commmit and push fix to remote
+6. commit, push, create PR, and merge to main
 
