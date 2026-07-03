@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-browser-plugin"],
+  "plugin": ["opencode-browser-plugin","opencode-metasearch2"],
   "mcp": {
     "paper-search": {
       "type": "local",

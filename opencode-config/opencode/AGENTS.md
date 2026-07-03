@@ -165,9 +165,17 @@ Always set the `workdir` parameter; don't use `cd`
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
 
-**Browser testing:**
-- Run tests in **headless mode** by default (`headed: false`)
-- If you encounter errors related to visibility or authentication, restart the browser in **headed mode** (`headed: true`) to debug
+### Browser testing
+
+**PREFER automated E2E test scripts over the interactive browser tool.**
+- Run the project's own E2E scripts (`node tests/e2e_comprehensive.mjs`, `node tests/playwright_e2e.mjs`) as the primary verification method — they are fast, deterministic, and catch regressions without fragile session management.
+- Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
+
+**Headed mode (`headed: true`) sessions are fragile:**
+- Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.
+- Always prefer **headless mode** (`headed: false`) for automated checks.
+- Only use headed mode to visually debug a specific issue, and avoid interrupting it while actions are queued.
+
 - Always use `http://127.0.0.1:<port>` when connecting to a local dev server [see Browser Tool](#browser-tool)
 - **Verify test selectors match the current UI first** — Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`). Systematic checklist:
   1. Snapshot the page → see if the expected element exists in the DOM at all
@@ -197,7 +205,7 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 - **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, kill the old server and start a new one so it serves the fresh files.
 - **Use `fuser -k <port>/tcp`** to kill only the process on the test port, instead of `pkill -f "<name>"` which can kill unrelated processes.
 
-**Data isolation:**
+### Data isolation
 - Do **not** pollute the production database — test on a COPY
 - If test credentials are required, look for `.dev` files
 - **Clone the data directory before any test run.** This guarantees you can restore the original state regardless of what happens during testing:
@@ -214,3 +222,7 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
   rm -f /tmp/test.db
   ```
   The clone approach above is the universal fallback when the app doesn't support custom DB paths.
+
+### Test credentials
+- look for `./.dev`
+- ask user if necessary
