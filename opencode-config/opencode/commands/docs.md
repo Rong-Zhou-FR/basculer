@@ -2,4 +2,4 @@
 description: update tracking after fix
 agent: copilot
 ---
-Great work. Now, please update documentation to reflect latest changes. (root and module AGENTS.md , README.md...)
+Great work. Now, if the change affects user-facing behavior or architecture, update documentation accordingly. (root AGENTS.md, module AGENTS.md, README.md...)
