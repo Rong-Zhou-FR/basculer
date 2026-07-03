@@ -7,7 +7,7 @@ Work on tests for specified code or feature.
 
 Input:
 - Code to test (file, function, or feature)
-- Or "run existing" to run test suite
+- Or "run existing" to run tests (prefer targeted over full suite)
 
 Process:
 1. Ask user to clarify input if unclear

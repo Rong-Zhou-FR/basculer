@@ -146,10 +146,10 @@ Always set the `workdir` parameter; don't use `cd`
 **While coding:**
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
 - extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
-
+- run only tests relevant to your changes, not the full suite — full-suite is wasteful for small/surgical changes
 
 **After implementation:**
-- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests; fix failures
+- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests relevant to the changes; fix failures
 - commit changes
 
 **After completing a functional unit:**
