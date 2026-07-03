@@ -146,10 +146,10 @@ Always set the `workdir` parameter; don't use `cd`
 **While coding:**
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
 - extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
-
+- run only tests relevant to your changes, not the full suite — full-suite is wasteful for small/surgical changes
 
 **After implementation:**
-- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests; fix failures
+- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests relevant to the changes; fix failures
 - commit changes
 
 **After completing a functional unit:**
@@ -165,13 +165,32 @@ Always set the `workdir` parameter; don't use `cd`
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
 
-**Browser testing:**
-- Run tests in **headless mode** by default (`headed: false`)
-- If you encounter errors related to visibility or authentication, restart the browser in **headed mode** (`headed: true`) to debug
+### Browser testing
+
+**PREFER automated E2E test scripts over the interactive browser tool.**
+- Run the project's own E2E scripts (`node tests/e2e_comprehensive.mjs`, `node tests/playwright_e2e.mjs`) as the primary verification method — they are fast, deterministic, and catch regressions without fragile session management.
+- Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
+
+**Headed mode (`headed: true`) sessions are fragile:**
+- Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.
+- Always prefer **headless mode** (`headed: false`) for automated checks.
+- Only use headed mode to visually debug a specific issue, and avoid interrupting it while actions are queued.
+
 - Always use `http://127.0.0.1:<port>` when connecting to a local dev server [see Browser Tool](#browser-tool)
-- **Verify test selectors match the current UI first** — Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`).
-- **Capture browser console errors** — Add a `page.on("pageerror", ...)` handler and log errors during test runs. Console errors (especially `TypeError: Cannot read properties of undefined`) often indicate real code bugs, not test problems. Fix them even if tests pass.
-- **Design test helpers to extract structured results** — Avoid reading full page text for assertions. Target specific result containers (the active tab panel, a specific message area) instead. If the app uses a chat/conversation view, expect command history to accumulate — either clear it between tests or target the most recent result element.
+- **Verify test selectors match the current UI first** — Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`). Systematic checklist:
+  1. Snapshot the page → see if the expected element exists in the DOM at all
+  2. If the locator is missing, grep the source for the actual class/aria-label
+  3. Update the test selector to match the current UI
+  4. Re-run the test
+- **Capture browser console errors** — Add a handler and log errors during test runs:
+  ```js
+  page.on("pageerror", (err) => console.log("  [BROWSER ERROR]", err.message));
+  ```
+  Console errors (especially `TypeError: Cannot read properties of undefined`) often indicate real code bugs, not test problems. Fix them even if tests pass. Note: this only catches unhandled exceptions, not `console.warn`/`console.error` calls inside try/catch — add a `page.on("console", ...)` handler for those if needed.
+- **Target a specific result element for assertions** — Avoid reading full page text. Instead, use a selector that isolates the result panel. Common patterns:
+  * Tab-based UI: the active tab panel (`.tab-content.active`, `[role="tabpanel"]`)
+  * Single-result popup: `[role="dialog"]`
+  * Chat/conversation view: the last `.message` or `nth-last-child` result element (command history accumulates — don't read the whole chat log)
 
 **Spinning up long-running dev servers:**
 - Use `setsid` to detach the process from the shell session so it survives the bash tool's timeout [see Command Execution](#command-execution)
@@ -186,10 +205,24 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 - **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, kill the old server and start a new one so it serves the fresh files.
 - **Use `fuser -k <port>/tcp`** to kill only the process on the test port, instead of `pkill -f "<name>"` which can kill unrelated processes.
 
-**Data isolation:**
+### Data isolation
 - Do **not** pollute the production database — test on a COPY
 - If test credentials are required, look for `.dev` files
-- **Reset state between test runs** — Tests that create records (accounts, items) leave residue. Delete or clean the test database between runs so stale state doesn't cause false assertion failures:
+- **Clone the data directory before any test run.** This guarantees you can restore the original state regardless of what happens during testing:
+  ```bash
+  cp -r ~/.local/share/<app>/ ~/tmp/<app>-backup/
+  # ... run tests, which modify the live data ...
+  rm -rf ~/.local/share/<app>/
+  mv ~/tmp/<app>-backup/ ~/.local/share/<app>/
   ```
-  rm -f ~/.local/share/<app>/*.db*
+  The `~/tmp/` directory (your home, private) is used instead of `/tmp/` (world-readable on some systems).
+- **If the app supports a custom database path** (check CLI flags or config), use a temp file instead — no clone needed:
+  ```bash
+  uv run <app> --db /tmp/test.db
+  rm -f /tmp/test.db
   ```
+  The clone approach above is the universal fallback when the app doesn't support custom DB paths.
+
+### Test credentials
+- look for `./.dev`
+- ask user if necessary
