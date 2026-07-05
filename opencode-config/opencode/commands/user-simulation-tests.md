@@ -3,15 +3,15 @@ description: run user-simulation tests
 agent: copilot
 ---
 
-## task: user-simulation testing
+Run user-simulation testing on $1.
 
-- Test project as if you are an end-user
-  - if credentials needed, look for `.dev` file
-    - if not found, ask user for test credentials 
-  - if webGUI, use playwright browser
-    - if you do not know how to access the browser, STOP and ask for user direction
-    - run with `head:false` (headless mode) by default for efficiency. Switch to `head:true` if needed
-- Try all relevant commands and options in the specified scope: $1
-  - note any changes made to the userDB, and revert them when you are done
-- Fix failures
+If bugs found, fix them, then rerun testing. 
+
+Follow system AGENTS.md instructions.
+
+When reporting back, explain:
+
+|what exact I have done|what results I expect to get|what results I got|what are my conclusions|
+|----------------------|----------------------------|------------------|-----------------------|
+
 

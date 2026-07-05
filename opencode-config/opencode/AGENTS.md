@@ -133,6 +133,22 @@ Always set the `workdir` parameter; don't use `cd`
   - run the script yourself and fetch ALL the requested data (not just a sample) if you can (preferred)
   - if API keys/user interaction required, tell user clearly what they need to do
 
+**Build-time over runtime:**
+
+Shift processing from the browser to the build step whenever the data is known at build time. This is a performance/complexity tradeoff.
+
+**Do at build time:**
+- Static data transformations (format conversion, SVG cleaning, image optimization)
+- Code that would otherwise run N×M times (charts × visitors)
+- Validation, linting, type checking
+
+**Don't force at build time:**
+- Features that depend on user context (locale, device, preferences)
+- Processing that would significantly complicate the build pipeline
+- Optimizations where the runtime cost is negligible and the build-time complexity is high
+
+When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the data is fixed at build time, process it there. If it changes per request, keep it on the client or server.
+
 **Workflow:**
 
 **Before starting:**
@@ -144,12 +160,14 @@ Always set the `workdir` parameter; don't use `cd`
   - if they are implemented functional units that should have already been committed, commit them with an appropriate conventional commit message
 
 **While coding:**
+- **Read the source before writing.** Before modifying or testing code, read the functions, imports, and signatures you're targeting. Trace import chains for mock targets (module-level vs call-site imports — they need different patch strategies). Verify command names, param names, and flags from decorator definitions — don't guess.
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
 - extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
+- if you add a new function, class, or module, also write unit tests for it
 - run only tests relevant to your changes, not the full suite — full-suite is wasteful for small/surgical changes
 
 **After implementation:**
-- Ask `@reviewer` and `@tester` for review of 200+ line changes; run tests relevant to the changes; fix failures
+- Ask `@reviewer` for review of 200+ line changes; run tests relevant to the changes; fix failures — including pre-existing ones that are real code bugs (not environment/flaky issues). Do not skip them just because you didn't introduce them.
 - commit changes
 
 **After completing a functional unit:**
@@ -168,8 +186,19 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 ### Browser testing
 
 **PREFER automated E2E test scripts over the interactive browser tool.**
-- Run the project's own E2E scripts (`node tests/e2e_comprehensive.mjs`, `node tests/playwright_e2e.mjs`) as the primary verification method — they are fast, deterministic, and catch regressions without fragile session management.
-- Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
+
+1. **Discover** — Find existing E2E test files in the project:
+   - Glob for `**/*e2e*`, `**/*spec*`, `**/*test*`, `**/playwright*`
+   - Check common directories: `tests/`, `e2e/`, `cypress/`, `playwright/`
+   - Check `package.json` scripts for `test:e2e`, `e2e`, `playwright`, `cypress`
+2. **Assess** — Read found test files. Are they relevant to the change? Do their selectors/locators still match the current UI?
+3. **Run or update**:
+   - If tests exist and are valid → run them as the primary verification method (fast, deterministic, catches regressions).
+   - If tests exist but selectors are stale (element not found, wrong class, changed command path) → **update the test file** to match current UI, then run.
+   - If no relevant tests exist → write a new automated test file (`*e2e*` or `*spec*`), add it to the project, run it, and commit it alongside code changes.
+4. **Commit test changes** in the same commit as code changes (or a separate logical commit if tests pre-existed and were merely updated).
+
+Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
 
 **Headed mode (`headed: true`) sessions are fragile:**
 - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.

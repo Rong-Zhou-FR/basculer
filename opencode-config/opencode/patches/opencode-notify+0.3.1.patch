@@ -1,0 +1,31 @@
+diff --git a/node_modules/opencode-notify/dist/index.js b/node_modules/opencode-notify/dist/index.js
+index fc2c3bc..2dd3841 100644
+--- a/node_modules/opencode-notify/dist/index.js
++++ b/node_modules/opencode-notify/dist/index.js
+@@ -869,7 +869,7 @@ var opencodeNotifyPlugin = async ({ client }) => {
+           hasNotifiedIdle = false;
+           const props = event.properties;
+           const part = props.part;
+-          if (part?.type === "tool" && part?.tool?.toLowerCase() === "askuserquestion" && part?.state?.status === "pending") {
++          if (part?.type === "tool" && (part?.tool?.toLowerCase() === "askuserquestion" || part?.tool?.toLowerCase() === "question") && part?.state?.status === "pending") {
+             const callId = part.id ?? `part-AskUserQuestion-${Date.now()}`;
+             if (notifiedToolCalls.has(callId)) {
+               log(` Already notified for question: ${callId}`);
+@@ -917,7 +917,7 @@ var opencodeNotifyPlugin = async ({ client }) => {
+           }
+           for (const part of parts) {
+             const p = part;
+-            if (p.type === "tool" && p.tool?.toLowerCase() === "askuserquestion" && p.state?.status === "pending") {
++            if (p.type === "tool" && (p.tool?.toLowerCase() === "askuserquestion" || p.tool?.toLowerCase() === "question") && p.state?.status === "pending") {
+               const callId = p.id ?? `${info.id}-AskUserQuestion`;
+               if (notifiedToolCalls.has(callId)) {
+                 log(` Already notified for question: ${callId}`);
+@@ -1020,7 +1020,7 @@ var opencodeNotifyPlugin = async ({ client }) => {
+     "tool.execute.before": async (input, output) => {
+       log(`HOOK CALLED: tool.execute.before - ${input.tool}`);
+       hasNotifiedIdle = false;
+-      if (input.tool.toLowerCase() !== "askuserquestion") {
++      if ((input.tool.toLowerCase() !== "askuserquestion" && input.tool.toLowerCase() !== "question")) {
+         return;
+       }
+       const callId = input.callID ?? `tool-${Date.now()}`;
