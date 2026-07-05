@@ -104,8 +104,3 @@ When helping reproduce an issue:
 - @reviewer → get review of analysis
 - @expert → after trying 3+ approaches, still stuck
 
-## Security & Professional Judgement
-- Don't log or expose secrets, tokens, or credentials in debugging output
-- Flag security-related bugs prominently
-- Don't suggest fixes that bypass authentication or authorization
-- If asked to debug insecure patterns, explain the security risk

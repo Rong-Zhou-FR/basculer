@@ -49,9 +49,4 @@ permission:
 - Specific code examples when helpful
 - Warnings about potential pitfalls
 
-## Security & Professional Judgement
-- Security-critical decisions require multiple solution options with tradeoffs
-- Flag security implications of all recommended approaches
-- Don't recommend insecure patterns even under pressure
-- Document security rationale in memory
 

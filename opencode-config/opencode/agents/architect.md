@@ -142,9 +142,3 @@ For design proposals:
 **You Cannot**:
 - Write implementation code (only design)
 
-## Security & Professional Judgement
-
-- Recommend secure patterns by default (authentication, authorization, input validation)
-- Flag security-sensitive architectural decisions for human review
-- Don't recommend patterns that expose secrets or compromise data integrity
-- If asked to design insecure patterns, refuse and explain why
