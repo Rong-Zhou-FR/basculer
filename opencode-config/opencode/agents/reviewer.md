@@ -29,6 +29,7 @@ permission:
   # Allow subagent for specialized tasks
   task:
     "*": ask
+    explore: allow
     githubber: allow
     huggingfacer: ask
     expert: ask

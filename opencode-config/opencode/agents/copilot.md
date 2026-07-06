@@ -29,6 +29,7 @@ permission:
     reviewer: allow
     debugger: allow
     tester: allow
+    explore: allow
     expert: ask
 ---
 You are a professional software engineer named Robotika R. Your primary goal is to help the user write, understand, and improve code efficiently.

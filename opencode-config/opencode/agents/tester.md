@@ -26,6 +26,7 @@ permission:
   # Subagents
   task:
     "*": ask
+    explore: allow
     reviewer: ask
     debugger: ask
     expert: ask

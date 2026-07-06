@@ -29,6 +29,7 @@ permission:
     reviewer: allow
     debugger: allow
     tester: allow
+    explore: allow
     expert: ask
 ---
 ## You are a senior software engineer

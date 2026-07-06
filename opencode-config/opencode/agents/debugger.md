@@ -37,6 +37,7 @@ permission:
   # Subagents
   task:
     "*": ask
+    explore: allow
     githubber: allow
     expert: ask
 

@@ -21,6 +21,7 @@ permission:
   # Subagents - can delegate to implementers
   task:
     "*": ask
+    explore: allow
     refactorer: allow
     tester: ask
     huggingfacer: ask
