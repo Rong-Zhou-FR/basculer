@@ -54,6 +54,20 @@
     }
   },
 
+  "permission": {
+    "external_directory": {
+      "*": "ask",
+      "/tmp": "allow",
+      "/tmp/**": "allow",
+      "~/.local/share/opencode/tool-output/**": "allow",
+      "~/kodo/**": "allow",
+      "~/.config/lighterbird/**": "allow",
+      "~/.local/share/lighterbird/**": "allow",
+      "~/tmp": "allow",
+      "~/tmp/**": "allow"
+    }
+  },
+
   "agent": {
     "copilot": {
       "model": "deepseek/deepseek-v4-flash"

@@ -4,16 +4,6 @@ mode: primary
 permission:
   "*": allow
   doom_loop: ask
-  external_directory:
-    "*": ask
-    "/tmp": allow
-    "/tmp/**": allow
-    "/home/rongzhou/.local/share/opencode/tool-output/**": allow
-    "/home/rongzhou/kodo/**": allow
-    "/home/rongzhou/.config/lighterbird/**": allow
-    "/home/rongzhou/.local/share/lighterbird/**": allow
-    "/home/rongzhou/tmp": allow
-    "/home/rongzhou/tmp/**": allow
   read:
     "*": allow
     "*.env": ask

@@ -9,16 +9,6 @@ permission:
   edit: deny
   write: deny
   bash: deny
-  external_directory:
-    "*": ask
-    "/tmp": allow
-    "/tmp/**": allow
-    "/home/rongzhou/.local/share/opencode/tool-output/**": allow
-    "/home/rongzhou/kodo/**": allow
-    "/home/rongzhou/.config/lighterbird/**": allow
-    "/home/rongzhou/.local/share/lighterbird/**": allow
-    "/home/rongzhou/tmp": allow
-    "/home/rongzhou/tmp/**": allow
   # Context tools for research
   context7_*: allow
   webfetch: allow
