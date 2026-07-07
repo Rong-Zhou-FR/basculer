@@ -41,5 +41,34 @@ curl -s -o /dev/null -w '%{http_code}' http://[::1]:3300/
 # Returns 000 if server isn't listening on IPv6
 ```
 
+## Additional Causes of "Stuck" Browser Tool
+
+Even after fixing the IPv6 issue (using `127.0.0.1`), the browser tool can appear stuck forever:
+
+### 180s Browser-Launch Timeout
+Playwright's `launchPersistentContext` has a hard-coded **180-second timeout** that the browser tool's `timeout` parameter (default 30s) does NOT override. If Chromium fails to launch (corrupted profile, zombie process), the tool appears stuck for 3 minutes.
+
+### Browser Profile Corruption
+Interrupted browser sessions (Ctrl+C, `browser stop`, crash) leave `~/.opencode/browser-profile/` in an inconsistent state. Next Chromium launch exits immediately, triggering the 180s timeout. Fix:
+```bash
+rm -rf ~/.opencode/browser-profile/
+```
+
+### No Server-Readiness Check
+Agents start dev servers with `setsid` and immediately call `browser open`. If the server isn't ready, page load hangs. Fix: poll with `curl` before calling browser:
+```bash
+for i in $(seq 1 30); do
+  curl -sf -o /dev/null http://127.0.0.1:5173/ && break
+  sleep 1
+done
+```
+
+## Fix Applied
+2025-07-07 — Updated `opencode/AGENTS.md` with:
+- Always pass explicit `timeout` to `browser open` calls
+- Verify server readiness before browser open
+- Recovery procedure: `browser stop` → clear profile → retry
+- Warning about interrupted sessions corrupting the profile
+
 ## Discovered
 2025-06-23 — by empirical test after suspecting the "container isolation" claim was wrong.

@@ -55,6 +55,20 @@ Always set the `workdir` parameter; don't use `cd`
 - When using the browser tool to connect to a local dev server, **always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
   - **Why**: Python's `http.server` and many dev servers (nuxi, vite, webpack-dev-server) bind to IPv4 (`0.0.0.0`) by default, not IPv6 (`::`). Chromium resolves `localhost` to `::1` first (via Happy Eyeballs / system resolver), which gets `ERR_CONNECTION_REFUSED`.
   - The server need to be detached via `setsid` as described in the [Command Execution](#command-execution) section for long-running processes
+- **Always pass an explicit `timeout`** to `browser open` calls (e.g. `timeout=15000`). The default 30s timeout does NOT override Playwright's internal 180s browser-launch timeout (`launchPersistentContext`), so a failing browser launch can appear stuck for 3 minutes.
+- **Verify the server is accepting connections BEFORE calling `browser open`**: poll the URL with `curl` in a loop until it returns HTTP 2xx/3xx. Without this check, the browser may try to connect to a server that isn't ready, causing the page load to hang.
+  ```bash
+  # Wait for server (timeout after 30s)
+  for i in $(seq 1 30); do
+    curl -sf -o /dev/null http://127.0.0.1:5173/ && break
+    sleep 1
+  done
+  ```
+- **If the browser tool gets stuck** (takes >15s to respond):
+  1. Call `browser stop` to kill the stuck browser instance
+  2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
+  3. Retry
+- **Avoid interrupting browser sessions.** Any in-flight `browser_*` call that gets interrupted (Ctrl+C, timeout, user typing "continue") can corrupt the persistent Chromium profile at `~/.opencode/browser-profile/`, causing subsequent launches to fail silently with the 180s timeout.
 
 **General**:
 - Parallelize independent tool calls
@@ -179,6 +193,20 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
   - if major structural changes, invite user to evaluate the change (show them how: CLI commands for dev preview, etc.)
   - otherwise deploy it directly to live after final verification
 
+**Pre-existing issues:**
+- Evaluate by two dimensions:
+  - **Correctness certainty** — Are you confident the fix is right? (trivial: typo, wrong constant, missing import)
+  - **Blast radius** — Is the change local, without touching shared interfaces or data?
+- Fix only when **both** conditions hold. In all other cases, surface to the user.
+- If the problem is in an **external library** (not this repo): always ASK before fixing.
+
+**Error discipline:**
+- Define custom error classes in one centralised location (see existing module if already defined)
+- Always raise errors with a specific error type and clear message — no silent swallows or generic errors
+
+**Exploration workflow before coding:**
+- Run serena tools in sequence: `serena_list_memories` → `serena_read_memory` → (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns
+
 ## User-Simulation Testing
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
@@ -199,6 +227,21 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 4. **Commit test changes** in the same commit as code changes (or a separate logical commit if tests pre-existed and were merely updated).
 
 Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
+
+- **Always pass an explicit `timeout`** to `browser open` calls (e.g. `timeout=15000`). The default 30s timeout does NOT override Playwright's internal 180s browser-launch timeout (`launchPersistentContext`), so a failing browser launch can appear stuck for 3 minutes.
+- **Verify the server is accepting connections BEFORE calling `browser open`**: poll the URL with `curl` in a loop until it returns HTTP 2xx/3xx. Without this check, the browser may try to connect to a server that isn't ready, causing the page load to hang.
+  ```bash
+  # Wait for server (timeout after 30s)
+  for i in $(seq 1 30); do
+    curl -sf -o /dev/null http://127.0.0.1:5173/ && break
+    sleep 1
+  done
+  ```
+- **If the browser tool gets stuck** (takes >15s to respond):
+  1. Call `browser stop` to kill the stuck browser instance
+  2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
+  3. Retry
+- **Avoid interrupting browser sessions.** Any in-flight `browser_*` call that gets interrupted (Ctrl+C, timeout, user typing "continue") can corrupt the persistent Chromium profile at `~/.opencode/browser-profile/`, causing subsequent launches to fail silently with the 180s timeout.
 
 **Headed mode (`headed: true`) sessions are fragile:**
 - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.
