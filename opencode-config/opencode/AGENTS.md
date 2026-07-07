@@ -322,3 +322,13 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
 ### Test credentials
 - look for `./.dev`
 - ask user if necessary
+
+### Cleanup
+
+After testing is complete, clean up all processes and resources you created:
+
+- **Kill servers you started** — If you started any dev/test servers (e.g., for E2E testing), shut them down. Use targeted methods: `fuser -k <port>/tcp`.
+- **Restore backed-up data** — If you cloned a data directory for testing, restore it. Data isolation is worthless without cleanup.
+- **Remove temp files** — Delete any test databases, temp directories, or artifacts created during testing.
+
+If in doubt about whether a process is yours to kill, refer to [Port & Process Management](#port--process-management).
