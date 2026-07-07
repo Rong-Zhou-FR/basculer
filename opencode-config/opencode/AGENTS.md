@@ -128,6 +128,15 @@ Always set the `workdir` parameter; don't use `cd`
   - Efficiently fulfills the purpose
   - Is modular and maintainable
 
+## Port & Process Management
+
+**Never kill processes you didn't start.** This is a hard rule — killing a foreign process can disrupt the user's work, databases, or production services.
+
+- **Check before using a port** — Run `ss -tlnp` to verify a port is free before starting any server. Do not assume a port is available.
+- **Use a free port** — If the desired port is occupied by a foreign process, pick a different port. Most dev servers accept `--port <N>`. Adjust test-script URLs accordingly.
+- **Own cleanup only** — The only time it's acceptable to kill a process on a port is when you are cleaning up a server *you started* in a prior session (e.g., restarting after a rebuild). Use targeted methods: `fuser -k <port>/tcp` — never `pkill -f` or wildcard `kill`.
+- **When in doubt, ask** — If you cannot determine whether a process on a port belongs to you or the user, stop and ask rather than killing it.
+
 ## Development Conventions
 
 **Code structure:**
@@ -281,7 +290,9 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
   setsid bash -c 'uv run uvicorn app:create_app --factory --port 8000 > /tmp/server.log 2>&1 &'
   ```
 - **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, kill the old server and start a new one so it serves the fresh files.
-- **Use `fuser -k <port>/tcp`** to kill only the process on the test port, instead of `pkill -f "<name>"` which can kill unrelated processes.
+- **Check port availability before starting — don't kill foreign processes** — Before starting a server, verify the port is free with `ss -tlnp`. If a process occupies it:
+  - **If it's your own orphaned server** (from a prior session): clean it up with `fuser -k <port>/tcp`.
+  - **If it's a foreign process** (you didn't start it): use a different port instead. Never kill processes you didn't start.
 
 ### Data isolation
 - Do **not** pollute the production database — test on a COPY
