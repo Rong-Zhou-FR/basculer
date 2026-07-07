@@ -64,11 +64,10 @@ Always set the `workdir` parameter; don't use `cd`
     sleep 1
   done
   ```
-- **If the browser tool gets stuck** (takes >15s to respond):
-  1. Call `browser stop` to kill the stuck browser instance
-  2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
-  3. Retry
-- **After a timed-out or failed browser call**, the persistent profile at `~/.opencode/browser-profile/` may be corrupted. Before the next `browser open` call, always run recovery: `browser stop` then `rm -rf ~/.opencode/browser-profile/`, then retry.
+- **If ANY browser tool call hangs** (takes >15s to respond), stop making further browser calls immediately — they will all hang on the same stuck Chromium process. Run recovery:
+  1. `browser stop` — kill the stuck browser instance
+  2. `rm -rf ~/.opencode/browser-profile/` — clear the now-corrupted profile
+  3. Retry fresh with a new `browser open` call
 
 **General**:
 - Parallelize independent tool calls
@@ -237,11 +236,10 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
     sleep 1
   done
   ```
-- **If the browser tool gets stuck** (takes >15s to respond):
-  1. Call `browser stop` to kill the stuck browser instance
-  2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
-  3. Retry
-- **After a timed-out or failed browser call**, the persistent profile at `~/.opencode/browser-profile/` may be corrupted. Before the next `browser open` call, always run recovery: `browser stop` then `rm -rf ~/.opencode/browser-profile/`, then retry.
+- **If ANY browser tool call hangs** (takes >15s to respond), stop making further browser calls immediately — they will all hang on the same stuck Chromium process. Run recovery:
+  1. `browser stop` — kill the stuck browser instance
+  2. `rm -rf ~/.opencode/browser-profile/` — clear the now-corrupted profile
+  3. Retry fresh with a new `browser open` call
 
 **Headed mode (`headed: true`) sessions are fragile:**
 - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.

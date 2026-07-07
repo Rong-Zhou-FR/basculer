@@ -67,8 +67,7 @@ done
 2025-07-07 — Updated `opencode/AGENTS.md` with:
 - Always pass explicit `timeout` to `browser open` calls
 - Verify server readiness before browser open
-- Recovery procedure: `browser stop` → clear profile → retry
-- After a timed-out or failed browser call: always run `browser stop` then `rm -rf ~/.opencode/browser-profile/` before retrying
+- Any browser call can hang (not just `open`), not just the launch. If ANY call hangs, stop all further browser calls and recover: `browser stop` → `rm -rf ~/.opencode/browser-profile/` → retry fresh
 
 ## Discovered
 2025-06-23 — by empirical test after suspecting the "container isolation" claim was wrong.
