@@ -68,7 +68,7 @@ done
 - Always pass explicit `timeout` to `browser open` calls
 - Verify server readiness before browser open
 - Recovery procedure: `browser stop` → clear profile → retry
-- Recovery from interrupted sessions: `browser stop` vs Ctrl+C, and always clear profile before retry after interruption
+- After a timed-out or failed browser call: always run `browser stop` then `rm -rf ~/.opencode/browser-profile/` before retrying
 
 ## Discovered
 2025-06-23 — by empirical test after suspecting the "container isolation" claim was wrong.
