@@ -68,7 +68,7 @@ done
 - Always pass explicit `timeout` to `browser open` calls
 - Verify server readiness before browser open
 - Recovery procedure: `browser stop` → clear profile → retry
-- Warning about interrupted sessions corrupting the profile
+- Recovery from interrupted sessions: `browser stop` vs Ctrl+C, and always clear profile before retry after interruption
 
 ## Discovered
 2025-06-23 — by empirical test after suspecting the "container isolation" claim was wrong.

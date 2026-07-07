@@ -68,7 +68,7 @@ Always set the `workdir` parameter; don't use `cd`
   1. Call `browser stop` to kill the stuck browser instance
   2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
   3. Retry
-- **Avoid interrupting browser sessions.** Any in-flight `browser_*` call that gets interrupted (Ctrl+C, timeout, user typing "continue") can corrupt the persistent Chromium profile at `~/.opencode/browser-profile/`, causing subsequent launches to fail silently with the 180s timeout.
+- **If you need to abort a browser operation**, call `browser stop` rather than interrupting the tool call. A previous interrupted session (Ctrl+C, timeout, typing "continue") can corrupt `~/.opencode/browser-profile/` — always clear it with `rm -rf ~/.opencode/browser-profile/` before retrying after any interruption.
 
 **General**:
 - Parallelize independent tool calls
@@ -241,7 +241,7 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
   1. Call `browser stop` to kill the stuck browser instance
   2. Clear the browser profile if Chromium fails to launch: `rm -rf ~/.opencode/browser-profile/`
   3. Retry
-- **Avoid interrupting browser sessions.** Any in-flight `browser_*` call that gets interrupted (Ctrl+C, timeout, user typing "continue") can corrupt the persistent Chromium profile at `~/.opencode/browser-profile/`, causing subsequent launches to fail silently with the 180s timeout.
+- **If you need to abort a browser operation**, call `browser stop` rather than interrupting the tool call. A previous interrupted session (Ctrl+C, timeout, typing "continue") can corrupt `~/.opencode/browser-profile/` — always clear it with `rm -rf ~/.opencode/browser-profile/` before retrying after any interruption.
 
 **Headed mode (`headed: true`) sessions are fragile:**
 - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.
