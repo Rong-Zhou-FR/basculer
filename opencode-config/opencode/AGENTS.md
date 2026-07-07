@@ -52,6 +52,7 @@ Always set the `workdir` parameter; don't use `cd`
     `setsid` creates a new session that survives the parent shell's death.
 
 **Browser Tool**:
+- **Always clear the browser profile before the first `browser open` call** in a session: `rm -rf ~/.opencode/browser-profile/`. The persistent profile is the #1 cause of hangs — interrupted sessions leave it corrupted, and subsequent Chromium launches fail silently with a 180-second timeout.
 - When using the browser tool to connect to a local dev server, **always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
   - **Why**: Python's `http.server` and many dev servers (nuxi, vite, webpack-dev-server) bind to IPv4 (`0.0.0.0`) by default, not IPv6 (`::`). Chromium resolves `localhost` to `::1` first (via Happy Eyeballs / system resolver), which gets `ERR_CONNECTION_REFUSED`.
   - The server need to be detached via `setsid` as described in the [Command Execution](#command-execution) section for long-running processes
@@ -68,6 +69,9 @@ Always set the `workdir` parameter; don't use `cd`
   1. `browser stop` — kill the stuck browser instance
   2. `rm -rf ~/.opencode/browser-profile/` — clear the now-corrupted profile
   3. Retry fresh with a new `browser open` call
+- **If the browser tool hangs twice** (recovery + retry both fail), stop using the interactive browser tool entirely. Use an alternative approach instead:
+  - **`webfetch` tool** — for pages that don't need JS execution; fetches HTML and returns structured text.
+  - **`bash` + `npx playwright test <script>`** — for full E2E tests. Write a Playwright test script, run it via `bash`, and read the output. This launches a separate Chromium process independent of the built-in browser plugin's profile.
 
 **General**:
 - Parallelize independent tool calls
@@ -227,6 +231,7 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 
 Use the interactive browser tool (`browser_*` tool calls) **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
 
+- **Always clear the browser profile before the first `browser open` call** in a session: `rm -rf ~/.opencode/browser-profile/`. The persistent profile is the #1 cause of hangs — interrupted sessions leave it corrupted, and subsequent Chromium launches fail silently with a 180-second timeout.
 - **Always pass an explicit `timeout`** to `browser open` calls (e.g. `timeout=15000`). The default 30s timeout does NOT override Playwright's internal 180s browser-launch timeout (`launchPersistentContext`), so a failing browser launch can appear stuck for 3 minutes.
 - **Verify the server is accepting connections BEFORE calling `browser open`**: poll the URL with `curl` in a loop until it returns HTTP 2xx/3xx. Without this check, the browser may try to connect to a server that isn't ready, causing the page load to hang.
   ```bash
@@ -240,6 +245,9 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
   1. `browser stop` — kill the stuck browser instance
   2. `rm -rf ~/.opencode/browser-profile/` — clear the now-corrupted profile
   3. Retry fresh with a new `browser open` call
+- **If the browser tool hangs twice** (recovery + retry both fail), stop using the interactive browser tool entirely. Use an alternative approach instead:
+  - **`webfetch` tool** — for pages that don't need JS execution; fetches HTML and returns structured text.
+  - **`bash` + `npx playwright test <script>`** — for full E2E tests. Write a Playwright test script, run it via `bash`, and read the output. This launches a separate Chromium process independent of the built-in browser plugin's profile.
 
 **Headed mode (`headed: true`) sessions are fragile:**
 - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.

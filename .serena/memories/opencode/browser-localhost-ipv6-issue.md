@@ -67,7 +67,9 @@ done
 2025-07-07 — Updated `opencode/AGENTS.md` with:
 - Always pass explicit `timeout` to `browser open` calls
 - Verify server readiness before browser open
-- Any browser call can hang (not just `open`), not just the launch. If ANY call hangs, stop all further browser calls and recover: `browser stop` → `rm -rf ~/.opencode/browser-profile/` → retry fresh
+- Preventive: always clear `~/.opencode/browser-profile/` before first `browser open` in a session (profile corruption is the #1 cause)
+- Escalation: if browser tool hangs twice, switch to `webfetch` (static) or `bash` + `npx playwright test <script>` (full E2E)
+- Alternatives: `webfetch` for JS-less pages, Playwright scripts via bash for full E2E (separate Chromium process, no profile sharing)
 
 ## Discovered
 2025-06-23 — by empirical test after suspecting the "container isolation" claim was wrong.
