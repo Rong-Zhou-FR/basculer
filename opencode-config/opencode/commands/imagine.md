@@ -23,3 +23,5 @@ Requirements:
 - Ideas must be actionable and implementable, not utopian
 - Consider team constraints and project scale
 - Write concisely and directly
+
+Follow conventions in AGENTS.md.

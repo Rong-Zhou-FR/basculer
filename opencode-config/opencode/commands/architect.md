@@ -13,3 +13,4 @@ Deliverables:
 - Component structure
 - Data flow
 - Key decisions with tradeoffs
+Follow conventions in AGENTS.md.

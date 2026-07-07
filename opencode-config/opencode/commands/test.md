@@ -14,3 +14,5 @@ Process:
 2. Write new tests (only *.test.*, *.spec.*, tests/**), OR
 3. Run existing tests
 4. Show results, focus on failures
+
+Follow conventions in AGENTS.md.

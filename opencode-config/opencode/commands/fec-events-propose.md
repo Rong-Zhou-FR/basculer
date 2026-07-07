@@ -36,3 +36,5 @@ agent: copilot
 ### section 2 xxx
 
 ```
+
+Follow conventions in AGENTS.md.

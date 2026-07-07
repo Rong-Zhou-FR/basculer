@@ -23,3 +23,5 @@ Response format:
 - codebase size
 - libs
 - code quality
+
+Follow conventions in AGENTS.md.

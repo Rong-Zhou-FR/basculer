@@ -17,3 +17,5 @@ Moving on. We are working on issue $1.
     - your solution must address root issue
   - in all cases, consult relevant subagents if applicable
 - Do NOT edit any files yet
+
+Follow conventions in AGENTS.md.

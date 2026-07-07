@@ -36,3 +36,5 @@ Good references:
 - recent git log
 - CI/CD config for build/test commands
 - github issues/pull requests (ask @githubber subagent)
+
+Follow conventions in AGENTS.md.

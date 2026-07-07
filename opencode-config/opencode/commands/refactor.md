@@ -10,3 +10,4 @@ Focus:
 - Remove duplication
 - Apply appropriate patterns
 - Maintain existing functionality
+Follow conventions in AGENTS.md.

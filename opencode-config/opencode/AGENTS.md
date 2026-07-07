@@ -223,6 +223,13 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
 
+### Reporting
+
+When reporting back user-simulation test results, use this table format:
+
+| what exact I have done | what results I expect to get | what results I got | what are my conclusions |
+|------------------------|------------------------------|--------------------|-------------------------|
+
 ### Browser testing
 
 **PREFER automated E2E test scripts over the interactive browser tool.**

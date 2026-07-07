@@ -10,3 +10,5 @@ Process:
 2. Identify potential issues (feasibility, security, performance)
 3. Consider alternatives and tradeoffs
 4. Provide honest assessment with reasoning
+
+Follow conventions in AGENTS.md.
