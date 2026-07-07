@@ -288,17 +288,18 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
 
 **Spinning up long-running dev servers:**
 - Use `setsid` to detach the process from the shell session so it survives the bash tool's timeout [see Command Execution](#command-execution)
-- Standard patterns:
-  ```
-  # Node.js (Next.js, Nuxt, Vite dev server)
+- **Record the PID on start** — Save the PID so cleanup can kill by recorded PID instead of port-based guessing:
+  ```bash
+  # Node.js (Next.js, Nuxt, Vite dev server) — $! captures the setsid PID
   setsid npx nuxt dev --port 3000 --host 0.0.0.0 > /tmp/nuxt-dev.log 2>&1 &
+  echo $! > /tmp/nuxt-dev.pid
 
-  # Python (FastAPI/uvicorn) — & is a shell feature, wrap in bash -c
-  setsid bash -c 'uv run uvicorn app:create_app --factory --port 8000 > /tmp/server.log 2>&1 &'
+  # Python (FastAPI/uvicorn) — capture PID via $! inside bash -c
+  setsid bash -c 'uv run uvicorn app:create_app --factory --port 8000 > /tmp/server.log 2>&1 & echo $! > /tmp/server.pid'
   ```
-- **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, kill the old server and start a new one so it serves the fresh files.
+- **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, read the saved PID, kill the old server (`kill $(cat /tmp/nuxt-dev.pid)`), and start a new one.
 - **Check port availability before starting — don't kill foreign processes** — Before starting a server, verify the port is free with `ss -tlnp`. If a process occupies it:
-  - **If it's your own orphaned server** (from a prior session): clean it up with `fuser -k <port>/tcp`.
+  - **If it's your own orphaned server** (from a prior session): clean it up by recorded PID, or `fuser -k <port>/tcp` as fallback.
   - **If it's a foreign process** (you didn't start it): use a different port instead. Never kill processes you didn't start.
 
 ### Data isolation
@@ -327,7 +328,12 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
 
 After testing is complete, clean up all processes and resources you created:
 
-- **Kill servers you started** — If you started any dev/test servers (e.g., for E2E testing), shut them down. Use targeted methods: `fuser -k <port>/tcp`.
+- **Kill servers you started** — If you saved the PID on start, kill by PID file:
+  ```bash
+  kill $(cat /tmp/nuxt-dev.pid) 2>/dev/null
+  rm -f /tmp/nuxt-dev.pid
+  ```
+  If you didn't record the PID, fall back to `fuser -k <port>/tcp`.
 - **Restore backed-up data** — If you cloned a data directory for testing, restore it. Data isolation is worthless without cleanup.
 - **Remove temp files** — Delete any test databases, temp directories, or artifacts created during testing.
 
