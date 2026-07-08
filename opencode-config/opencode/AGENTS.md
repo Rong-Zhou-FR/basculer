@@ -337,6 +337,11 @@ Use the interactive browser tool (`browser_*` tool calls) **only as a last resor
 - **Check port availability before starting — don't kill foreign processes** — Before starting a server, verify the port is free with `ss -tlnp`. If a process occupies it:
   - **If it's your own orphaned server** (from a prior session): clean it up by recorded PID, or `fuser -k <port>/tcp` as fallback.
   - **If it's a foreign process** (you didn't start it): use a different port instead. Never kill processes you didn't start.
+- **Find a free port dynamically** — Instead of guessing which port is free, allocate one:
+  ```bash
+  PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+  ```
+  Then pass it via `--port $PORT` (most dev servers support this flag). This guarantees no conflicts and never kills a foreign process.
 
 ### Data isolation
 - Do **not** pollute the production database — test on a COPY
