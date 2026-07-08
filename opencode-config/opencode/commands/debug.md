@@ -28,12 +28,10 @@ Debug $1
    Await user go-ahead before proceeding to step 4.
 
 4. Fix problematic code/AGENTS.md/doc, etc. for ALL occurrences of the root cause
-   - If fix required in external directory outside `.`, ask user for direction
 
 5. Run tests relevant to the code changes (not the full suite unless there is specific reason
    to suspect wide-ranging breakage)
 
-6. User simulation testing
-   - Use the program as an end user would and catch unexpected behaviours
+6. User simulation testing (follow AGENTS.md conventions)
 
 7. Commit, push, create PR, and merge to main
