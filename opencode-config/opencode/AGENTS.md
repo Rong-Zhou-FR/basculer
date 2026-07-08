@@ -181,24 +181,28 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
 - Understand the task, read memories (`serena_list_memories` → `serena_read_memory`), plan with `todowrite`, consult `@architect` for architectural changes
   - do NOT consult @architect for simple patches with no architectural impact. You are competent.
 - Ensure you are not working on `main` — use feature branches
-- If there are unrelated uncommitted changes
-  - if they look like partial edits, stash them; restore and signal to user when finished
-  - if they are implemented functional units that should have already been committed, commit them with an appropriate conventional commit message
+- If `git status --porcelain` shows uncommitted changes, another session
+  is using this checkout — do not touch it. Instead, create an isolated
+  worktree: `git worktree add -b <branch-name> ../basculer-<branch-name>`
+  and work there. Activate serena on the worktree path via
+  `serena_activate_project` if possible; otherwise use raw tools
+  (read/write/edit) with absolute paths.
 
 **While coding:**
 - **Read the source before writing.** Before modifying or testing code, read the functions, imports, and signatures you're targeting. Trace import chains for mock targets (module-level vs call-site imports — they need different patch strategies). Verify command names, param names, and flags from decorator definitions — don't guess.
 - Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
 - extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
-- if you add a new function, class, or module, also write unit tests for it
 - run only tests relevant to your changes, not the full suite — full-suite is wasteful for small/surgical changes
 
 **After implementation:**
-- Ask `@reviewer` for review of 200+ line changes; run tests relevant to the changes; fix failures — including pre-existing ones that are real code bugs (not environment/flaky issues). Do not skip them just because you didn't introduce them.
+- Ask `@reviewer` for review of 200+ line changes; run tests relevant to the changes, covering all required layers (see [Test coverage requirements](#test-coverage-requirements--three-layers-not-just-backend)); fix failures — including pre-existing ones that are real code bugs (not environment/flaky issues). Do not skip them just because you didn't introduce them.
 - commit changes
 
 **After completing a functional unit:**
 - Perform user-simulation testing — see [User-Simulation Testing](#user-simulation-testing) below
 - Merge to main and PUSH to remote
+- If you created a worktree for this branch, clean it up:
+  `git worktree remove <worktree-path>`
 - Update `AGENTS.md`, `README.md`, and related GitHub issues
 - Close completed issues with a closing comment, update partially solved issues with progress
 - if the fix/feature concern a live deployment (website, live webapp)
@@ -219,9 +223,41 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
 **Exploration workflow before coding:**
 - Run serena tools in sequence: `serena_list_memories` → `serena_read_memory` → (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns
 
+## Test coverage requirements — THREE layers, not just backend
+
+Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!command` that opens a tab, a form that submits data, a list that renders items) MUST have tests at ALL applicable layers:
+
+| Layer | Tool | Scope | When required |
+|-------|------|-------|---------------|
+| **Backend unit tests** | `pytest` | Handler logic, validation, DB operations, error conditions | Any new/modified Python function, class, or API route |
+| **E2E GUI tests** | Playwright `.mjs` in `tests/` | DOM rendering: tab opens, panel content, form fields, keyboard nav, selection mode | Any new command, UI component, route, or interactive feature |
+| **Component tests** | Vitest in `web/src/__tests__/` | Isolated component behavior: rendering, props, callbacks, validation display | Complex or shared Svelte components (DynamicForm, MultiEntryField, list tabs, dialogs) |
+
+### Minimum assertion quality for E2E GUI tests
+- **Not**: Just `assert(!text.includes("Error"))` (cheap — only checks the app didn't crash)
+- **Must**: `assertTabOpened("Expected Title")` — verify a tab actually rendered
+- **Must**: `assertFormOpened(...)` — verify form fields exist when command is incomplete
+- **Must**: Track console errors (`pageErrors[]`, `consoleErrors[]`) and FAIL on any unhandled JS exception
+- **Should**: Assert specific DOM elements (tab bar, role attributes, CSS classes, button text)
+- **Should**: Test keyboard navigation (open multi-tab, switch, close)
+- **Should**: Test empty states, form validation, and selection mode
+
+### How to decide which layers
+1. **Backend-only change** (new service, DB migration, pure function): Only backend unit tests.
+2. **New `!command`** that returns structured data: Backend unit tests + E2E tab-opens assertion.
+3. **New `!command`** that opens an interactive form: Backend unit tests + E2E form-fields assertion.
+4. **New Svelte component** with complex interaction (chips, multi-select, validation): Backend tests (if any) + component tests.
+5. **New list tab**: Backend tests + E2E tab-opens + empty-state + sort/selection assertions.
+6. **Bug fix** in the GUI (tab doesn't open, form missing fields): E2E test that reproduces the exact bug.
+
 ## User-Simulation Testing
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
+
+> **This is the FINAL manual verification step.** Before running user-simulation,
+> ensure automated tests exist at all three layers (backend unit, E2E GUI,
+> component tests) as specified in [Test coverage requirements](#test-coverage-requirements--three-layers-not-just-backend).
+> User-simulation is meant to catch what automated tests miss, not to replace them.
 
 ### Reporting
 

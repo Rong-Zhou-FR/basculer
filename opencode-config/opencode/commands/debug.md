@@ -3,7 +3,7 @@ description: Diagnose and fix errors
 agent: copilot
 ---
 
-In addition, debug $1
+Debug $1
 
 1. Identify root cause of undesired behavior
   - implementation problem ?
