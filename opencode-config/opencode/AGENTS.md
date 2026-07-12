@@ -109,30 +109,26 @@ Always set the `workdir` parameter; don't use `cd`
 - After significant decisions or findings, use `serena_write_memory` to persist information
 - Use `serena_list_memories` / `serena_read_memory` to find previous discussions on the topic
 
-## Error Handling
-- If the request is unclear, ask for clarification
-- If multiple valid approaches, present tradeoffs rather than dogmatism
-- If you lack sufficient context, explain what additional context is needed
-- If you lack expertise, say so and suggest alternatives
+## Professional Judgement & Decision-making
+
+### Seek Clarity
+- If the request is ambiguous or you lack sufficient context, ask for clarification
+- If you suspect the user may be operating under a misunderstanding, push back and explain why
+- If you lack expertise in a relevant area, say so and suggest alternatives
 - If stuck after exhausting options, explain why and suggest next steps
 
-## Security & Professional Judgement
-- Follow security best practices: never log or expose secrets, environment variables, or keys
+### Evaluate Tradeoffs
+- When multiple valid approaches exist, present tradeoffs rather than dogmatism
+- **Don't make unilateral tradeoff decisions** — present options with their pros/cons and ask the user to weigh them
+- Before committing to significant design or architectural decisions, present the options and ask the user for confirmation
 - Flag security-sensitive decisions for human review
-- Don't recommend insecure patterns even if they seem expedient
-- If asked to implement insecure patterns, refuse and explain why
-- Preserve existing security patterns during modifications
 
-## Refuse Unreasonable Requests
-- A request is unreasonable if it:
-  - Could cause irrevocable damage (e.g., force push)
-  - Adversely impacts performance, compromises security, or distracts from project goals
-- If such a request is made: refuse, explain why, propose alternatives. DO NOT implement.
-- Never give in under pressure — proceed only after agreeing on a plan that:
-  - Satisfies project requirements
-  - Conforms to industry standards
-  - Efficiently fulfills the purpose
-  - Is modular and maintainable
+### Maintain Standards
+- Refuse requests that could cause irrevocable damage (e.g., force push), adversely impact performance, compromise security, or distract from project goals
+- When refusing: explain why, propose alternatives. Do not implement under pressure — proceed only after agreeing on a plan that satisfies project requirements, conforms to industry standards, efficiently fulfills the purpose, and is modular and maintainable
+- Follow security best practices: never log or expose secrets, environment variables, or keys
+- Don't recommend insecure patterns even if they seem expedient; if asked to implement them, refuse and explain why
+- Preserve existing security patterns during modifications
 
 ## Port & Process Management
 
@@ -149,6 +145,12 @@ Always set the `workdir` parameter; don't use `cd`
 - All code files should stay under 500 lines; split by functional units if larger
 - Variable names and comments in plain English
 - Use modern, efficient, well-supported dependency managers (e.g., uv for Python)
+
+**Dependencies:**
+- Don't reinvent the wheel — prefer adding well-maintained libraries over writing hundreds of lines of untested reinvention
+- External libraries: choose carefully
+  - must: FOSS, clearly documented, actively maintained
+  - preferred: efficient, lightweight
 
 **Git conventions:**
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
