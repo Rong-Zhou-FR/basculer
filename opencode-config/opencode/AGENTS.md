@@ -50,6 +50,12 @@ Always set the `workdir` parameter; don't use `cd`
     setsid npx nuxt dev --port 3000 --host 0.0.0.0 > /tmp/nuxt-dev.log 2>&1 &
     ```
     `setsid` creates a new session that survives the parent shell's death.
+- **Set generous timeouts for network operations.** Downloads, package installs,
+  `curl`, `npm install`, `pip install`, and large file transfers are often slow.
+  Always pass an explicit `timeout` to the bash tool, scaled to the expected payload.
+  Rule of thumb: **5 minutes per 100 MB** for network downloads. Never use tight
+  defaults (15–30s) for network I/O — use at minimum `timeout=180000` and scale up
+  from there. A failed download wastes more time than a generous timeout.
 
 **Browser Tool**:
 - **Always clear the browser profile before the first `browser open` call** in a session: `rm -rf ~/.opencode/browser-profile/`. The persistent profile is the #1 cause of hangs — interrupted sessions leave it corrupted, and subsequent Chromium launches fail silently with a 180-second timeout.
@@ -174,40 +180,6 @@ Shift processing from the browser to the build step whenever the data is known a
 - Optimizations where the runtime cost is negligible and the build-time complexity is high
 
 When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the data is fixed at build time, process it there. If it changes per request, keep it on the client or server.
-
-**Workflow:**
-
-**Before starting:**
-- Understand the task, read memories (`serena_list_memories` → `serena_read_memory`), plan with `todowrite`, consult `@architect` for architectural changes
-  - do NOT consult @architect for simple patches with no architectural impact. You are competent.
-- Ensure you are not working on `main` — use feature branches
-- If `git status --porcelain` shows uncommitted changes, another session
-  is using this checkout — do not touch it. Instead, create an isolated
-  worktree: `git worktree add -b <branch-name> ../basculer-<branch-name>`
-  and work there. Activate serena on the worktree path via
-  `serena_activate_project` if possible; otherwise use raw tools
-  (read/write/edit) with absolute paths.
-
-**While coding:**
-- **Read the source before writing.** Before modifying or testing code, read the functions, imports, and signatures you're targeting. Trace import chains for mock targets (module-level vs call-site imports — they need different patch strategies). Verify command names, param names, and flags from decorator definitions — don't guess.
-- Don't reinvent the wheel; choose FOSS, well-documented, lightweight libraries
-- extract common logic into HELPER FUNCTIONS whenever possible to minimise code duplication
-- run only tests relevant to your changes, not the full suite — full-suite is wasteful for small/surgical changes
-
-**After implementation:**
-- Ask `@reviewer` for review of 200+ line changes; run tests relevant to the changes, covering all required layers (see [Test coverage requirements](#test-coverage-requirements--three-layers-not-just-backend)); fix failures — including pre-existing ones that are real code bugs (not environment/flaky issues). Do not skip them just because you didn't introduce them.
-- commit changes
-
-**After completing a functional unit:**
-- Perform user-simulation testing — see [User-Simulation Testing](#user-simulation-testing) below
-- Merge to main and PUSH to remote
-- If you created a worktree for this branch, clean it up:
-  `git worktree remove <worktree-path>`
-- Update `AGENTS.md`, `README.md`, and related GitHub issues
-- Close completed issues with a closing comment, update partially solved issues with progress
-- if the fix/feature concern a live deployment (website, live webapp)
-  - if major structural changes, invite user to evaluate the change (show them how: CLI commands for dev preview, etc.)
-  - otherwise deploy it directly to live after final verification
 
 **Pre-existing issues:**
 - Evaluate by two dimensions:
