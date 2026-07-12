@@ -1,7 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "copilot",
-  "plugin": ["opencode-browser-plugin","opencode-metasearch2","opencode-notify"],
+  "plugin": ["opencode-browser-plugin","opencode-notify",
+    "./plugins/opencode-worktree-tools/index.ts",
+    "file:///home/rongzhou/kodo/opencode-tweaks/opencode-metasearch2/dist/index.js"
+  ],
   "mcp": {
     "paper-search": {
       "type": "local",
