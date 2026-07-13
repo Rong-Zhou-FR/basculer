@@ -67,6 +67,35 @@
   },
 
   "permission": {
+    "bash": {
+      // Destructive commands — agent must ask for approval:
+      "git reset --hard*": "ask",         // destroys all uncommitted local work
+      "git push --force*": "ask",          // overwrites remote history
+      "git push -f*": "ask",               // same, short form
+      "git clean -f*": "ask",              // deletes untracked files/folders
+      "git checkout -- *": "ask",          // discards working tree changes
+      "git restore .": "ask",              // same, modern form
+      "git rm -r*": "ask",                 // removes files from both disk and git
+      "git rebase *": "ask",               // rewrites commit history
+      "git filter-branch*": "ask",         // repo-wide history rewrite (nuclear)
+      "git branch -D*": "ask",             // force-deletes branches
+      "git stash drop*": "ask",            // permanently deletes a stash
+      "git stash clear*": "ask",           // deletes all stashes
+      "docker system prune -af*": "ask",   // nukes all containers, images, networks
+      "docker system prune --all*": "ask", // same, long flag form
+      "docker rm -f *": "ask",             // force-removes containers
+      "docker rmi -f *": "ask",            // force-removes images
+      "docker volume rm -f *": "ask",      // destroys all volumes with data
+      "find . -delete*": "ask",            // bulk deletion via find
+      "find . -exec rm*": "ask",           // same, alternative syntax
+      "sudo *": "ask",                     // any sudo command (escalation)
+      "chmod -R 0*": "ask",                // locks all files in a directory
+      "chown -R*": "ask",                  // bulk ownership change
+      "truncate -s 0*": "ask",             // truncates files to zero bytes
+      "dd if=/dev/zero of=*": "ask",       // zeroes out files or disks
+      "rm -rf*": "ask",                    // classic filesystem nuke
+      "rm -fr*": "ask"                     // same, flag order swapped
+    },
     "external_directory": {
       "*": "ask",
       "/tmp": "allow",

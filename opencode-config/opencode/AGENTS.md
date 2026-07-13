@@ -192,7 +192,27 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
 
 **Error discipline:**
 - Define custom error classes in one centralised location (see existing module if already defined)
-- Always raise errors with a specific error type and clear message — no silent swallows or generic errors
+- **Fatal errors** — always raise with a specific error type and clear message; never use generic exceptions or swallow silently.
+- **Non-fatal errors** — never swallow silently (`except: pass` is forbidden). Log at WARNING level with diagnostic context so failures are observable without crashing.
+- Examples:
+  ```
+  # BAD — swallowed, invisible
+  except: pass
+
+  # BAD — generic, no context
+  except Exception: log("error")
+
+  # BAD — fatal error silently downgraded to log
+  except ValidationError: log.warning("invalid input")
+
+  # GOOD — fatal, specific, informative
+  except ValidationError as e:
+      raise InvalidConfigError(f"bad value for {key}: {e}")
+
+  # GOOD — non-fatal, logged with context
+  except TimeoutError:
+      log.warning("request to %s timed out after %ds", url, timeout)
+  ```
 
 **Exploration workflow before coding:**
 - Run serena tools in sequence: `serena_list_memories` → `serena_read_memory` → (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns
@@ -232,6 +252,7 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 > ensure automated tests exist at all three layers (backend unit, E2E GUI,
 > component tests) as specified in [Test coverage requirements](#test-coverage-requirements--three-layers-not-just-backend).
 > User-simulation is meant to catch what automated tests miss, not to replace them.
+> If your user-simulation flow addresses existing test gaps and can be automated, append it to the automated test suite
 
 ### Reporting
 
