@@ -244,6 +244,19 @@ Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!c
 5. **New list tab**: Backend tests + E2E tab-opens + empty-state + sort/selection assertions.
 6. **Bug fix** in the GUI (tab doesn't open, form missing fields): E2E test that reproduces the exact bug.
 
+## Running Tests from Git Worktrees
+
+- **Never create a `.venv` inside a worktree.** All worktrees share the original checkout's `.venv`
+  (e.g. `kodo/autish/lighterbird/.venv/`).  A worktree only differs in its `src/` directory.
+- Run tests by overriding the source path:
+  ```bash
+  PYTHONPATH=src /path/to/parent/.venv/bin/python -m pytest tests/...
+  ```
+  `PYTHONPATH=src` prepends the worktree's `src/` to `sys.path`, taking precedence over the
+  editable-install `.pth` file (which still points to the parent's `src/`).
+- **Do NOT use `uv run pytest`** from a worktree — `uv run` may resolve the wrong virtual
+  environment.  Use the parent `.venv`'s Python directly.
+
 ## User-Simulation Testing
 
 Test the end program as a user would — verify the front-end (GUI/CLI/TUI) works, not just the backend. Do **not** test directly via the backend API alone.
