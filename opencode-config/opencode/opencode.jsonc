@@ -3,7 +3,7 @@
   "default_agent": "copilot",
   "plugin": ["opencode-browser-plugin","opencode-notify",
     "./plugins/opencode-worktree-tools/index.ts",
-    "file:///home/rongzhou/kodo/opencode-tweaks/opencode-metasearch2/dist/index.js"
+    "./plugins/opencode-metasearch2/index.ts"
   ],
   "mcp": {
     "paper-search": {
@@ -23,6 +23,14 @@
       "enabled": false,
       "url": "https://huggingface.co/mcp?login",
       "oauth": {}
+    },
+    "brave-search": {
+      "type": "local",
+      "command": ["brave-search-mcp-server"],
+      "environment": {
+        "BRAVE_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/brave-api-key"
+      },
+      "enabled": true
     },
     "serena": {
       "type": "local",

@@ -5,7 +5,7 @@ agent: copilot
 
 Call the `worktreeCreate` tool NOW to create an isolated git worktree. 
 
-- Branch: the purpose is $ARGUMENTS". Use descriptive conventional branch name
+- Branch: the purpose is "$ARGUMENTS". Use descriptive conventional branch name
 - Base branch: optional, defaults to HEAD.
 
 After calling the tool, briefly report: branch name, worktree path, and that a new terminal opened.
