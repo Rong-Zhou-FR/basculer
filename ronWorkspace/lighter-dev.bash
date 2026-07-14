@@ -73,9 +73,6 @@ SELF="$(basename "${BASH_SOURCE[0]}")"
 HAS_WMCTRL=false
 command -v wmctrl &>/dev/null && HAS_WMCTRL=true
 
-# Temp directory for generated layout files.
-LAYOUT_DIR="/tmp/lighter-dev-layouts"
-
 # Seconds to wait for a Zellij session daemon to start after launch.
 SESSION_READY_TIMEOUT=15
 
@@ -109,90 +106,38 @@ switch_desktop() {
     fi
 }
 
-# ── Layout generation ──────────────────────────────────────────────────────
-
-# Write a Zellij KDL layout file for a set of tabs.
-#
-# Uses Zellij's native `cwd` attribute for working directories (no bash-cd trickery).
-# For command tabs, wraps in `bash -c "cmd; exec bash"` so the pane stays open
-# after the command finishes.
-#
-# Usage: gen_layout <filepath> <tab-spec>...
-# Each <tab-spec> is "tab_name|workdir|command"
-# If command is empty, opens a shell in workdir.
-gen_layout() {
-    local filepath="$1"
-    shift
-
-    printf 'layout {\n' > "$filepath"
-
-    local tab_index=0
-    local tab_name workdir cmd escaped_name escaped_workdir escaped_cmd
-    for spec in "$@"; do
-        tab_index=$((tab_index + 1))
-        IFS='|' read -r tab_name workdir cmd <<< "$spec"
-        tab_name="${tab_name:-tab-$tab_index}"
-
-        # Escape backslashes and double quotes for KDL string content
-        escaped_name="${tab_name//\\/\\\\}"
-        escaped_name="${escaped_name//\"/\\\"}"
-        escaped_workdir="${workdir//\\/\\\\}"
-        escaped_workdir="${escaped_workdir//\"/\\\"}"
-
-        if [[ -z "$cmd" ]]; then
-            # Shell-only tab — just open bash in the workdir
-            printf '    tab name="%s" cwd="%s" {\n' \
-                "$escaped_name" "$escaped_workdir" >> "$filepath"
-            printf '        pane\n' >> "$filepath"
-            printf '    }\n' >> "$filepath"
-        else
-            # Command tab — run command, then stay open with a shell
-            escaped_cmd="${cmd//\\/\\\\}"
-            escaped_cmd="${escaped_cmd//\"/\\\"}"
-            printf '    tab name="%s" cwd="%s" {\n' \
-                "$escaped_name" "$escaped_workdir" >> "$filepath"
-            printf '        pane command="bash" {\n' >> "$filepath"
-            printf '            args "-c" "%s; exec bash"\n' "$escaped_cmd" >> "$filepath"
-            printf '        }\n' >> "$filepath"
-            printf '    }\n' >> "$filepath"
-        fi
-    done
-
-    printf '}\n' >> "$filepath"
-}
-
 # Launch a development workspace terminal.
 #
-# Approach (two-phase launch — avoids default_layout and partial config files):
+# Approach:
 #   1. Kill any stale session with the target name (clean slate)
 #   2. Switch to target virtual desktop
-#   3. Launch bare Zellij in Alacritty — session created with full default
-#      config (tab-bar & status-bar plugins load → UX frame stays visible)
+#   3. Launch bare Zellij in Alacritty — default config loads, full UX frame
 #   4. Wait for session daemon to appear (polling, with timeout)
-#   5. Apply layout to running session — adds all N tabs with proper cwd
+#   5. For each tab spec, create a new tab via `zellij action new-tab --cwd`
 #   6. Close the auto-created default tab (best-effort)
 #
-# Usage: launch_term <desk-index> <label> <layout-file-path>
+# Usage: launch_term <desk-index> <label> <tab-spec>...
+# Each <tab-spec> is "tab_name|workdir|command"
+# If command is empty, opens a shell in workdir.
 launch_term() {
     local desk_index="$1"
     local label="$2"
-    local layout_file="$3"
+    shift 2
+    local -a tab_specs=("$@")
     local session_name="lighter-dev-${label}"
 
     log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
-    # Step 1: Kill stale session (clean slate for fresh layout)
+    # Step 1: Kill stale session (clean slate)
     zellij kill-sessions "$session_name" 2>/dev/null || true
 
     # Step 2: Switch to target virtual desktop
     switch_desktop "$desk_index"
 
-    # Step 3: Launch bare Zellij via Alacritty — full default config loads
-    # (tab-bar and status-bar plugins intact → UX frame visible)
+    # Step 3: Launch bare Zellij via Alacritty — full UX frame from default config
     alacritty -e zellij --session "$session_name" &>/dev/null &
 
     # Step 4: Wait for the session daemon to be ready
-    # Strip ANSI codes from list-sessions output (Zellij may colorize names).
     local timeout=$SESSION_READY_TIMEOUT
     while (( timeout > 0 )); do
         if zellij list-sessions 2>/dev/null \
@@ -207,24 +152,31 @@ launch_term() {
 
     if (( timeout == 0 )); then
         log_warn "Session «${session_name}» not ready within ${SESSION_READY_TIMEOUT}s"
-        log_warn "Layout will not be applied to this session"
-        # Do NOT return 1 here — that would trigger set -e and kill main().
-        # Subsequent terminals should still launch.
-    else
-        # Extra settling time before sending layout commands
-        sleep 0.5
-
-        # Step 5: Apply layout to the running session
-        # zellij --layout <file> --session <name> adds all tabs with proper cwd
-        if ! zellij --layout "$layout_file" --session "$session_name" &>/dev/null; then
-            log_warn "Failed to apply layout to session «${session_name}»"
-        fi
-
-        # Step 6: Close the auto-created default tab
-        # Best-effort — if this fails, one extra shell tab persists (cosmetic)
-        zellij --session "$session_name" action go-to-tab 0 &>/dev/null || true
-        zellij --session "$session_name" action close-tab &>/dev/null || true
+        return 0
     fi
+
+    sleep 0.5
+
+    # Step 5: Create each tab via `zellij action new-tab`
+    # Each new tab inherits the session's UX frame (tab-bar, status-bar).
+    # Shell-only tabs: just set name and cwd.
+    # Command tabs: wrap in `bash -c "cmd; exec bash"` to keep pane open.
+    local tab_name workdir cmd
+    for spec in "${tab_specs[@]}"; do
+        IFS='|' read -r tab_name workdir cmd <<< "$spec"
+        if [[ -z "$cmd" ]]; then
+            zellij --session "$session_name" action new-tab \
+                --name "$tab_name" --cwd "$workdir" &>/dev/null || true
+        else
+            zellij --session "$session_name" action new-tab \
+                --name "$tab_name" --cwd "$workdir" \
+                -- bash -c "$cmd; exec bash" &>/dev/null || true
+        fi
+    done
+
+    # Step 6: Close the auto-created default tab (best-effort)
+    zellij --session "$session_name" action go-to-tab 0 &>/dev/null || true
+    zellij --session "$session_name" action close-tab &>/dev/null || true
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────
@@ -275,54 +227,43 @@ main() {
     need_dir "$DIR_SCRATCH"
     need_dir "$DIR_AUTISH"
 
-    # ── Layout directory ───────────────────────────────────────────────
-    mkdir -p "$LAYOUT_DIR"
-    # Remove stale layouts from previous runs (they are re-created below).
-    rm -f "$LAYOUT_DIR"/lighter-dev-*.kdl
-
     echo ""
 
     # ── Workspace 1: lighter-config + lighterbird + semantika ──────────
     log_info "=== Workspace 1 ==="
-    gen_layout "$LAYOUT_DIR/lighter-dev.kdl" \
+    launch_term "$DESK_WS1" "lighter-dev" \
         "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
         "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
         "lighterbird|${DIR_LIGHTERBIRD}|git pull" \
         "lighterbird-2|${DIR_LIGHTERBIRD}|" \
         "semantika|${DIR_SEMANTIKA}|git pull" \
         "semantika-2|${DIR_SEMANTIKA}|"
-    launch_term "$DESK_WS1" "lighter-dev" "$LAYOUT_DIR/lighter-dev.kdl"
 
     # ── Workspace 3: autish repl ───────────────────────────────────────
     log_info "=== Workspace 3 ==="
-    gen_layout "$LAYOUT_DIR/autish.kdl" \
+    launch_term "$DESK_WS3" "autish" \
         "repl-sistemo|${DIR_AUTISH}|${CMD_A_REPL_SISTEMO}" \
         "shell|${DIR_AUTISH}|" \
         "repl-semantika|${DIR_AUTISH}|${CMD_A_REPL_SEMANTIKA}"
-    launch_term "$DESK_WS3" "autish" "$LAYOUT_DIR/autish.kdl"
 
     # ── Workspace 4: opencode-config + scratch ─────────────────────────
     log_info "=== Workspace 4 ==="
-    gen_layout "$LAYOUT_DIR/opencode.kdl" \
+    launch_term "$DESK_WS4" "opencode" \
         "opencode|${DIR_BASCULER_OPENCODE}|${CMD_OPENCODE}" \
         "shell|${DIR_BASCULER_OPENCODE}|"
-    launch_term "$DESK_WS4" "opencode" "$LAYOUT_DIR/opencode.kdl"
 
-    gen_layout "$LAYOUT_DIR/scratch.kdl" \
+    launch_term "$DESK_WS4" "scratch" \
         "tmp|${DIR_SCRATCH}|nvim ./tmp.md" \
         "lighterbird-notes|${DIR_SCRATCH}|nvim ./lighterbird/lighterbird-1.md" \
         "semantika-notes|${DIR_SCRATCH}|nvim ./semantika/semantika-1.md"
-    launch_term "$DESK_WS4" "scratch" "$LAYOUT_DIR/scratch.kdl"
 
     # ── Workspace 5: lighterbird + semantika master ────────────────────
     log_info "=== Workspace 5 ==="
-    gen_layout "$LAYOUT_DIR/lighterbird-master.kdl" \
+    launch_term "$DESK_WS5" "lighterbird-master" \
         "master|${DIR_LIGHTERBIRD}|${CMD_MASTER}"
-    launch_term "$DESK_WS5" "lighterbird-master" "$LAYOUT_DIR/lighterbird-master.kdl"
 
-    gen_layout "$LAYOUT_DIR/semantika-master.kdl" \
+    launch_term "$DESK_WS5" "semantika-master" \
         "master|${DIR_SEMANTIKA}|${CMD_MASTER}"
-    launch_term "$DESK_WS5" "semantika-master" "$LAYOUT_DIR/semantika-master.kdl"
 
     echo ""
     log_ok "All terminals launched. Zellij sessions are running."

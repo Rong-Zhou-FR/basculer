@@ -8,7 +8,8 @@
 # Covers:
 #   - --help exits 0 and shows documentation
 #   - --dry-run exits 0 and shows preview
-#   - gen_layout produces valid KDL with correct tab names, cwds, commands
+#   - launch_term is defined with correct signature
+#   - No stale gen_layout / LAYOUT_DIR references remain
 #
 
 set -euo pipefail
@@ -69,64 +70,35 @@ assert_contains "$dry_out" "opencode" "shows all workspaces"
 
 echo ""
 
-# ── Test: gen_layout ─────────────────────────────────────────────────
+# ── Test: structural checks ──────────────────────────────────────────
 
-echo "=== gen_layout ==="
+echo "=== structural ==="
 
-# We need to source the function definitions without calling main.
-# Create a slim wrapper that sources everything except the last line.
+# Source the function definitions without calling main
 test_wrapper=$(mktemp)
-# Remove the trailing `main "$@"` line so we can safely source
 sed '/^main "\$@"$/d' "$SCRIPT" > "$test_wrapper"
-
-# Wrapper must not error out from set -euo pipefail when we don't call main
-printf '\n# override: gen_layout tests only — do not call main\ntrue\n' >> "$test_wrapper"
-
+printf '\n# override — sourced for structural tests only\ntrue\n' >> "$test_wrapper"
 source "$test_wrapper"
 
-# Test 1: Shell-only tabs
-gen_layout /tmp/test_l1.kdl \
-    "tab1|/home/user/proj|" \
-    "tab2|/home/user/other|"
+# launch_term should exist and accept tab specs
+assert_contains "$(declare -f launch_term)" "action new-tab" \
+    "launch_term uses action new-tab"
+assert_contains "$(declare -f launch_term)" '--cwd "$workdir"' \
+    "launch_term passes --cwd"
+assert_contains "$(declare -f launch_term)" "kill-sessions" \
+    "launch_term cleans stale sessions"
+assert_contains "$(declare -f launch_term)" "go-to-tab 0" \
+    "launch_term closes default tab"
 
-l1=$(cat /tmp/test_l1.kdl)
-assert_contains "$l1" 'tab name="tab1" cwd="/home/user/proj"' "tab1 name+cwd"
-assert_contains "$l1" 'tab name="tab2" cwd="/home/user/other"' "tab2 name+cwd"
-assert_contains "$l1" 'pane' "shell-only tab has pane"
-assert_contains "$l1" 'layout {' "starts with layout"
-assert_contains "$l1" '}' "ends with closing brace"
-rm -f /tmp/test_l1.kdl
+# No stale layout machinery
+assert_eq "" "$(declare -f gen_layout 2>/dev/null || true)" \
+    "gen_layout function removed"
+assert_eq "" "$(echo "${LAYOUT_DIR:-}" 2>/dev/null || true)" \
+    "LAYOUT_DIR constant removed"
 
-# Test 2: Command tabs
-gen_layout /tmp/test_l2.kdl \
-    "code|/home/user/proj|nvim README.md"
+# Constants
+assert_eq "15" "$SESSION_READY_TIMEOUT" "SESSION_READY_TIMEOUT is 15"
 
-l2=$(cat /tmp/test_l2.kdl)
-assert_contains "$l2" 'command="bash"' "command tab uses bash"
-assert_contains "$l2" 'nvim README.md; exec bash' "command wrapping preserves original cmd"
-rm -f /tmp/test_l2.kdl
-
-# Test 3: Mixed shell + command tabs
-gen_layout /tmp/test_l3.kdl \
-    "shell|/tmp|" \
-    "build|/tmp|make" \
-    "edit|/tmp|vim"
-
-l3=$(cat /tmp/test_l3.kdl)
-# Should have 3 tab declarations
-tab_count=$(grep -c 'tab name=' /tmp/test_l3.kdl || true)
-assert_eq "3" "$tab_count" "mixed layout has 3 tabs"
-rm -f /tmp/test_l3.kdl
-
-# Test 4: Directory escaping (spaces, special chars)
-gen_layout /tmp/test_l4.kdl \
-    "my code|/home/user/my projects|"
-
-l4=$(cat /tmp/test_l4.kdl)
-assert_contains "$l4" 'cwd="/home/user/my projects"' "escapes spaces in cwd"
-rm -f /tmp/test_l4.kdl
-
-# Clean up
 rm -f "$test_wrapper"
 
 echo ""
