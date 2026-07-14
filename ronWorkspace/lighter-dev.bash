@@ -192,9 +192,13 @@ launch_term() {
     alacritty -e zellij --session "$session_name" &>/dev/null &
 
     # Step 4: Wait for the session daemon to be ready
+    # Strip ANSI codes from list-sessions output (Zellij may colorize names).
     local timeout=$SESSION_READY_TIMEOUT
     while (( timeout > 0 )); do
-        if zellij list-sessions 2>/dev/null | awk '{print $1}' | grep -qxF "$session_name"; then
+        if zellij list-sessions 2>/dev/null \
+            | sed 's/\x1b\[[0-9;]*m//g' \
+            | awk '{print $1}' \
+            | grep -qxF "$session_name"; then
             break
         fi
         sleep 1
@@ -202,23 +206,25 @@ launch_term() {
     done
 
     if (( timeout == 0 )); then
-        log_warn "Session «${session_name}» not ready within ${SESSION_READY_TIMEOUT}s — skipping layout"
-        return 1
+        log_warn "Session «${session_name}» not ready within ${SESSION_READY_TIMEOUT}s"
+        log_warn "Layout will not be applied to this session"
+        # Do NOT return 1 here — that would trigger set -e and kill main().
+        # Subsequent terminals should still launch.
+    else
+        # Extra settling time before sending layout commands
+        sleep 0.5
+
+        # Step 5: Apply layout to the running session
+        # zellij --layout <file> --session <name> adds all tabs with proper cwd
+        if ! zellij --layout "$layout_file" --session "$session_name" &>/dev/null; then
+            log_warn "Failed to apply layout to session «${session_name}»"
+        fi
+
+        # Step 6: Close the auto-created default tab
+        # Best-effort — if this fails, one extra shell tab persists (cosmetic)
+        zellij --session "$session_name" action go-to-tab 0 &>/dev/null || true
+        zellij --session "$session_name" action close-tab &>/dev/null || true
     fi
-
-    # Brief extra settling time for the session daemon
-    sleep 0.5
-
-    # Step 5: Apply layout to the running session
-    # zellij --layout <file> --session <name> adds all tabs with proper cwd
-    if ! zellij --layout "$layout_file" --session "$session_name" &>/dev/null; then
-        log_warn "Failed to apply layout to session «${session_name}»"
-    fi
-
-    # Step 6: Close the auto-created default tab
-    # Best-effort — if this fails, one extra shell tab persists (cosmetic)
-    zellij --session "$session_name" action go-to-tab 0 &>/dev/null || true
-    zellij --session "$session_name" action close-tab &>/dev/null || true
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────
