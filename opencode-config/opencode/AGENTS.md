@@ -112,9 +112,11 @@ Use when modifying code definitions:
 
 ### Browser Tool
 
-The browser tool is provided by the `browser-safety` plugin
-(auto-loaded from `.opencode/plugins/browser-safety.ts`).
-It uses Playwright's `chromium.launchPersistentContext()` with a persistent profile at
+The browser tool is provided by the
+[opencode-safe-playwright](https://github.com/Ron-RONZZ-org/opencode-safe-playwright)
+plugin (symlinked from `~/kodo/opencode-tweaks/opencode-safe-playwright/src/index.ts` to
+`.opencode/plugins/browser-safety.ts`). It uses Playwright's
+`chromium.launchPersistentContext()` with a persistent profile at
 `~/.opencode/browser-profile/`. This design has a known failure mode:
 
 **Root cause**: Module-level `state` persists in the long-running
