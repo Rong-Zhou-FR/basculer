@@ -231,7 +231,7 @@ main() {
   # Workspace configs: tab name|working directory (cwd)|init shell cmd|
   # ── Workspace 1: lighter-config + lighterbird + semantika ──────────
   log_info "=== Workspace 1 ==="
-  launch_term "$DESK_WS1" "lighter-dev" \
+  launch_term "$DESK_WS1" "testing" \
     "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
     "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
     "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \
@@ -248,7 +248,7 @@ main() {
 
   # ── Workspace 4: opencode-config + scratch ─────────────────────────
   log_info "=== Workspace 4 ==="
-  launch_term "$DESK_WS4" "opencode" \
+  launch_term "$DESK_WS4" "basculer" \
     "basculer-opencode|${DIR_BASCULER_OPENCODE}|${CMD_OPENCODE}" \
     "shell|${DIR_BASCULER_OPENCODE}|"
 
@@ -259,11 +259,11 @@ main() {
 
   # ── Workspace 5: lighterbird + semantika master ────────────────────
   log_info "=== Workspace 5 ==="
-  launch_term "$DESK_WS5" "lighterbird-master" \
+  launch_term "$DESK_WS5" "lighterbird-gitmaster" \
     "lighterbird-gitmaster|${DIR_LIGHTERBIRD}|${CMD_MASTER}" \
     "shell|${DIR_LIGHTERBIRD}|"
 
-  launch_term "$DESK_WS5" "semantika-master" \
+  launch_term "$DESK_WS5" "semantika-gitmaster" \
     "semantika-gitmaster|${DIR_SEMANTIKA}|${CMD_MASTER}" \
     "shell|${DIR_SEMANTIKA}|"
 
