@@ -1,6 +1,6 @@
 {
 	"$schema": "https://opencode.ai/config.json",
-	// Must be loaded AFTER opencode-browser-plugin to intercept its tools
+	// Standalone browser plugin with per-session isolation
 	"plugin": ["./plugins/browser-safety.ts"]
 	// Add MCP servers, tools, plugins here
 }
