@@ -112,11 +112,12 @@ Use when modifying code definitions:
 
 ### Browser Tool
 
-The browser tool is provided by the `opencode-browser-plugin` (v1.0.1) which uses
-Playwright's `chromium.launchPersistentContext()` with a persistent profile at
+The browser tool is provided by the `browser-safety` plugin
+(auto-loaded from `.opencode/plugins/browser-safety.ts`).
+It uses Playwright's `chromium.launchPersistentContext()` with a persistent profile at
 `~/.opencode/browser-profile/`. This design has a known failure mode:
 
-**Root cause**: The browser plugin's module-level `state` persists in the long-running
+**Root cause**: Module-level `state` persists in the long-running
 opencode server process across sessions. When a session is interrupted (tool timeout,
 user interruption, agent restart) while the browser is active:
 1. The Chromium process may be killed ungracefully, but `state.context` remains set
@@ -127,11 +128,9 @@ user interruption, agent restart) while the browser is active:
 4. Subsequent browser operations silently target the dead context, causing ALL
    actions to hang indefinitely
 
-The `browser-safety` plugin (auto-loaded from `.opencode/plugins/browser-safety.ts`)
-**replaces** the browser plugin's tools with per-session-isolated versions:
+The `browser-safety` plugin mitigates this with **per-session isolation**:
 each opencode session gets its OWN Chromium process and profile directory.
-The original browser plugin's tools still exist but are shadowed by the safety
-plugin's overrides (loaded later in the plugin array).
+Session A's browser never interferes with Session B's.
 
 #### Pre-launch checklist
 

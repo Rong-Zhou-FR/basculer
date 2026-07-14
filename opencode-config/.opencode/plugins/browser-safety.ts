@@ -1,23 +1,21 @@
 /**
  * Browser Safety Plugin
  *
- * Per-session browser isolation + safety wrapper for opencode-browser-plugin.
+ * Standalone browser automation plugin for opencode with per-session isolation.
  *
- * **Per-session isolation**: Each opencode session gets its OWN Chromium process
- * and browser profile directory. Session A cannot interfere with Session B.
- * State is stored in a `Map<sessionID, SessionState>` instead of a single module-level object.
+ * Each opencode session gets its OWN Chromium process and browser profile
+ * directory. Session A cannot interfere with Session B. State is stored in a
+ * `Map<sessionID, SessionState>` instead of a single module-level object.
  *
- * **Tool overrides**: Defines `browser`, `browser_start`, `browser_snapshot`,
- * `browser_click`, and `browser_type` tools that OVERRIDE the ones from
- * opencode-browser-plugin (loaded after it in the plugin array).
+ * Tools: `browser`, `browser_start`, `browser_snapshot`, `browser_click`,
+ * `browser_type`, `browser_health`, `browser_clean`.
  *
- * **Safety hooks**: Pre-execution cleanup kills zombie processes and removes
- * stale lock files before browser operations.
+ * **Safety**: Pre-execution cleanup kills zombie processes and removes stale
+ * lock files before browser operations. Guidance injected into every LLM turn
+ * via `experimental.chat.messages.transform`.
  *
- * **Diagnostic tools**: `browser_health` and `browser_clean` for agents.
- *
- * **Guidance injection**: `<BROWSER_SAFETY>` XML block injected into every
- * LLM turn via `experimental.chat.messages.transform`.
+ * This is a complete replacement for opencode-browser-plugin.
+ * Inspired by the original work by heimoshuiyu (opencode-browser-plugin).
  *
  * @module browser-safety
  */
@@ -595,7 +593,7 @@ Use \`browser_health\` to check state, \`browser_clean\` to recover from hangs.
 		},
 
 		// -------------------------------------------------------------------------
-		// TOOLS — overrides for opencode-browser-plugin (per-session isolation)
+		// TOOLS — standalone browser tools with per-session isolation
 		// -------------------------------------------------------------------------
 		tool: {
 			// =====================================================================
