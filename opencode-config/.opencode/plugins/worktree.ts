@@ -665,6 +665,56 @@ async function removeWorktree(
 	return result.ok ? Result.ok(undefined) : Result.err(result.error)
 }
 
+/**
+ * Validate that the worktree has no uncommitted changes.
+ * Checks `git status --porcelain` — must be empty.
+ *
+ * @param worktreePath - Absolute path to the worktree directory
+ * @returns Ok if clean, Err with description if dirty or check fails
+ */
+async function validateWorktreeClean(
+	worktreePath: string,
+): Promise<Result<void, string>> {
+	const result = await git(["status", "--porcelain"], worktreePath)
+	if (!result.ok) {
+		return Result.err(`Failed to check worktree status: ${result.error}`)
+	}
+	if (result.value.length > 0) {
+		return Result.err(
+			`Worktree has uncommitted changes:\n${result.value}\n\nCommit or stash them before calling \`worktreeDelete\`.`,
+		)
+	}
+	return Result.ok(undefined)
+}
+
+/**
+ * Validate that a branch is fully merged into a base branch.
+ * Uses `git merge-base --is-ancestor` which exits 0 if ancestor (merged).
+ *
+ * @param repoRoot - Absolute path to the repository root
+ * @param branch - The feature branch to check (must be an ancestor of baseBranch)
+ * @param baseBranch - The base/target branch (e.g., "main")
+ * @returns Ok if branch is merged into baseBranch, Err if not
+ */
+async function validateBranchMerged(
+	repoRoot: string,
+	branch: string,
+	baseBranch: string,
+): Promise<Result<void, string>> {
+	const result = await git(["merge-base", "--is-ancestor", branch, baseBranch], repoRoot)
+	if (!result.ok) {
+		return Result.err(
+			`Branch "${branch}" is NOT fully merged into "${baseBranch}".\n\n` +
+				`Run these steps first:\n` +
+				`  1. git checkout ${baseBranch}\n` +
+				`  2. git merge ${branch}\n` +
+				`  3. Resolve any conflicts\n` +
+				`  4. Call \`worktreeDelete\` again`,
+		)
+	}
+	return Result.ok(undefined)
+}
+
 // =============================================================================
 // FILE SYNC MODULE
 // =============================================================================
@@ -1139,7 +1189,7 @@ const WorktreePlugin: Plugin = async (ctx) => {
 
 			worktree_delete: tool({
 				description:
-					"Delete the current worktree and clean up. Changes will be committed before removal.",
+					"Validate and delete the current worktree. Refuses if worktree is dirty or branch is not merged into main.",
 				args: {
 					reason: tool.schema
 						.string()
@@ -1152,10 +1202,44 @@ const WorktreePlugin: Plugin = async (ctx) => {
 						return `No worktree associated with this session`
 					}
 
-					// Set pending delete for session.idle (atomic operation)
-					setPendingDelete(database, { branch: session.branch, path: session.path }, client)
+					// ----- Validation phase -----
+					// 1. Worktree must have no uncommitted changes
+					const cleanResult = await validateWorktreeClean(session.path)
+					if (!cleanResult.ok) {
+						return `❌ ${cleanResult.error}`
+					}
 
-					return `Worktree marked for cleanup. It will be removed when this session ends.`
+					// 2. Branch must be fully merged into main (or configured base)
+					const baseBranch = "main"
+					const mergeResult = await validateBranchMerged(directory, session.branch, baseBranch)
+					if (!mergeResult.ok) {
+						return `❌ ${mergeResult.error}`
+					}
+
+					// ----- Cleanup phase -----
+					// Run preDelete hooks before cleanup
+					const config = await loadWorktreeConfig(directory, log)
+					if (config.hooks.preDelete.length > 0) {
+						await runHooks(session.path, config.hooks.preDelete, log)
+					}
+
+					// Remove worktree (defense-in-depth: --force even though we validated clean)
+					const removeResult = await removeWorktree(directory, session.path)
+					if (!removeResult.ok) {
+						return `❌ Failed to remove worktree: ${removeResult.error}`
+					}
+
+					// Delete the branch (safe delete — git will refuse if not truly merged)
+					const branchResult = await git(["branch", "-d", session.branch], directory)
+					if (!branchResult.ok) {
+						return `⚠️  Worktree removed, but failed to delete branch "${session.branch}": ${branchResult.error}`
+					}
+
+					// Remove session record
+					removeSession(database, session.branch)
+					clearPendingDelete(database)
+
+					return `✅ Worktree cleaned up successfully:\n  - Directory removed: ${session.path}\n  - Branch deleted: ${session.branch}`
 				},
 			}),
 		},
@@ -1163,31 +1247,21 @@ const WorktreePlugin: Plugin = async (ctx) => {
 		event: async ({ event }: { event: Event }): Promise<void> => {
 			if (event.type !== "session.idle") return
 
-			// Handle pending delete
+			// Handle pending delete (legacy path — cleanup now happens inline in worktree_delete)
 			const pendingDelete = getPendingDelete(database)
 			if (pendingDelete) {
 				const { path: worktreePath, branch } = pendingDelete
 
-				// Run preDelete hooks before cleanup
-				const config = await loadWorktreeConfig(directory, log)
-				if (config.hooks.preDelete.length > 0) {
-					await runHooks(worktreePath, config.hooks.preDelete, log)
-				}
-
-				// Commit any uncommitted changes
-				const addResult = await git(["add", "-A"], worktreePath)
-				if (!addResult.ok) log.warn(`[worktree] git add failed: ${addResult.error}`)
-
-				const commitResult = await git(
-					["commit", "-m", "chore(worktree): session snapshot", "--allow-empty"],
-					worktreePath,
-				)
-				if (!commitResult.ok) log.warn(`[worktree] git commit failed: ${commitResult.error}`)
-
-				// Remove worktree
+				// Remove worktree (best-effort; already validated clean at worktree_delete time)
 				const removeResult = await removeWorktree(directory, worktreePath)
 				if (!removeResult.ok) {
 					log.warn(`[worktree] Failed to remove worktree: ${removeResult.error}`)
+				}
+
+				// Delete branch (safe delete — git branch -d refuses if not merged)
+				const branchResult = await git(["branch", "-d", branch], directory)
+				if (!branchResult.ok) {
+					log.warn(`[worktree] Failed to delete branch "${branch}": ${branchResult.error}`)
 				}
 
 				// Clear pending delete atomically
@@ -1209,6 +1283,10 @@ const WorktreePluginWithInternals = Object.assign(WorktreePlugin, {
 		ensureLaunchContextProfile,
 		finalizeWorktreeLaunch,
 		symlinkDirs,
+		git,
+		validateWorktreeClean,
+		validateBranchMerged,
+		removeWorktree,
 	},
 } as const)
 
