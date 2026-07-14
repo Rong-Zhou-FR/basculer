@@ -1,7 +1,7 @@
 /**
  * Tests for browser-safety plugin.
  *
- * Run with: bun test .opencode/plugins/browser-safety.test.ts
+ * Run with: bun test .opencode/tests/browser-safety.test.ts
  *
  * These tests verify the utility functions that protect against
  * browser hangs caused by stale state after interrupted sessions.
@@ -28,9 +28,15 @@ const {
 	checkPlaywrightStatus,
 	removeLockFilesRecursive,
 	BROWSER_PROFILE_DIR,
+	SESSIONS_PROFILE_DIR,
+	BROWSER_SAFETY_MARKER,
+	BROWSER_SAFETY_GUIDANCE,
+	sanitizeSessionID,
+	sessionProfileDir,
+	getOrCreateSession,
 } = (BrowserSafetyPlugin as any).testInternals as {
 	killZombieChromes: () => { killed: number; errors: string[] }
-	cleanBrowserProfile: () => { removed: number; errors: string[] }
+	cleanBrowserProfile: (dir?: string) => { removed: number; errors: string[] }
 	checkPlaywrightStatus: () => {
 		installed: boolean
 		chromiumPath: string | null
@@ -41,6 +47,12 @@ const {
 		onRemoved: (name: string) => void,
 	) => void
 	BROWSER_PROFILE_DIR: string
+	SESSIONS_PROFILE_DIR: string
+	BROWSER_SAFETY_MARKER: string
+	BROWSER_SAFETY_GUIDANCE: string
+	sanitizeSessionID: (id: string) => string
+	sessionProfileDir: (sessionID: string) => string
+	getOrCreateSession: (sessionID: string) => { context: null; pages: Map<string, any> }
 }
 
 // =============================================================================
@@ -337,18 +349,110 @@ describe("checkPlaywrightStatus", () => {
 })
 
 describe("testInternals export", () => {
-	test("all expected functions are exposed", () => {
+	test("all expected functions and constants are exposed", () => {
 		const internals = (BrowserSafetyPlugin as any).testInternals
 		expect(internals).toBeDefined()
 		expect(typeof internals.killZombieChromes).toBe("function")
 		expect(typeof internals.cleanBrowserProfile).toBe("function")
 		expect(typeof internals.checkPlaywrightStatus).toBe("function")
 		expect(typeof internals.removeLockFilesRecursive).toBe("function")
+		expect(typeof internals.sanitizeSessionID).toBe("function")
+		expect(typeof internals.sessionProfileDir).toBe("function")
+		expect(typeof internals.getOrCreateSession).toBe("function")
 		expect(typeof internals.BROWSER_PROFILE_DIR).toBe("string")
+		expect(typeof internals.SESSIONS_PROFILE_DIR).toBe("string")
+		expect(typeof internals.BROWSER_SAFETY_MARKER).toBe("string")
+		expect(typeof internals.BROWSER_SAFETY_GUIDANCE).toBe("string")
 	})
 
 	test("BROWSER_PROFILE_DIR matches expected path", () => {
 		const expectedPath = path.join(os.homedir(), ".opencode", "browser-profile")
 		expect(BROWSER_PROFILE_DIR).toBe(expectedPath)
+	})
+
+	test("SESSIONS_PROFILE_DIR is subdirectory of BROWSER_PROFILE_DIR", () => {
+		expect(SESSIONS_PROFILE_DIR).toBe(path.join(BROWSER_PROFILE_DIR, "sessions"))
+	})
+
+	test("BROWSER_SAFETY_MARKER is correct", () => {
+		expect(BROWSER_SAFETY_MARKER).toBe("opencode-browser-safety")
+	})
+
+	test("BROWSER_SAFETY_GUIDANCE contains key instructions", () => {
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("<BROWSER_SAFETY>")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("</BROWSER_SAFETY>")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("browser_health")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("browser_clean")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("per-session")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("127.0.0.1")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("timeout")
+		expect(BROWSER_SAFETY_GUIDANCE).toContain("pkill -f")
+	})
+
+	test("BROWSER_SAFETY_GUIDANCE does not contain the dedup marker", () => {
+		expect(BROWSER_SAFETY_GUIDANCE).not.toContain(BROWSER_SAFETY_MARKER)
+	})
+})
+
+// =============================================================================
+// Per-session isolation tests
+// =============================================================================
+
+describe("sanitizeSessionID", () => {
+	test("replaces non-alphanumeric chars with underscores and limits to 12 chars", () => {
+		expect(sanitizeSessionID("ses_abc123")).toBe("ses_abc123")
+		const result = sanitizeSessionID("hello world!@#")
+		expect(result.length).toBeLessThanOrEqual(12)
+		expect(result).not.toContain("!")
+		expect(result).not.toContain("@")
+		expect(result).not.toContain("#")
+		expect(result).not.toContain(" ")
+	})
+
+	test("limits to 12 characters", () => {
+		const long = "a".repeat(50)
+		expect(sanitizeSessionID(long).length).toBe(12)
+	})
+
+	test("produces stable output for same input", () => {
+		const id = "ses_0a8744f5affeQOhmyqYcggN6wP"
+		expect(sanitizeSessionID(id)).toBe(sanitizeSessionID(id))
+	})
+})
+
+describe("sessionProfileDir", () => {
+	test("uses sessions subdirectory of BROWSER_PROFILE_DIR", () => {
+		const dir = sessionProfileDir("ses_test123")
+		expect(dir).toContain(SESSIONS_PROFILE_DIR)
+	})
+
+	test("includes sanitized session ID", () => {
+		const dir = sessionProfileDir("ses_test_abc")
+		expect(dir).toContain("ses_test_abc")
+	})
+})
+
+describe("getOrCreateSession", () => {
+	test("creates a new session state for unknown sessionID", () => {
+		const id = "test-session-" + Date.now()
+		const state = getOrCreateSession(id)
+		expect(state).toBeDefined()
+		expect(state.context).toBeNull()
+		expect(state.pages).toBeInstanceOf(Map)
+		expect(state.pages.size).toBe(0)
+		expect(state.pageCounter).toBe(0)
+	})
+
+	test("returns same state for repeated call with same sessionID", () => {
+		const id = "test-session-duplicate-" + Date.now()
+		const s1 = getOrCreateSession(id)
+		const s2 = getOrCreateSession(id)
+		expect(s1).toBe(s2)
+	})
+
+	test("different sessionIDs produce different state objects", () => {
+		const s1 = getOrCreateSession("session-A-" + Date.now())
+		const s2 = getOrCreateSession("session-B-" + Date.now())
+		expect(s1).not.toBe(s2)
 	})
 })
