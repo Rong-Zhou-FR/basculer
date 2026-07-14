@@ -14,6 +14,9 @@ basculer/
 ├── nvim/               # Neovim config — symlink to ~/.config/nvim
 ├── 0-1/                # Zero-to-One planning framework (standalone)
 ├── dev/                # development docs, plans, and templates
+├── ZellijAlacritty/    # Alacritty+Zellij terminal stack — run install.sh
+├── ronWorkspace/       # personal workspace launchers — run lighter-dev.bash
+├── tests/              # standalone bash test suites
 ├── .serena/            # Serena AI project config (memories, cache)
 ├── AGENTS.md           # this file
 ├── README.md           # user-facing quick start
@@ -30,6 +33,8 @@ basculer/
 | [espanso](./espanso/AGENTS.md) | symlink | Text expansion matches |
 | [nvim](./nvim/AGENTS.md) | symlink | Neovim configuration (init.lua, plugins, ftplugin) |
 | [0-1](./0-1/0.md) | standalone | Zero-to-One planning framework — problem/ideal/solution/eval |
+| [ZellijAlacritty](./ZellijAlacritty/AGENTS.md) | run | Alacritty+Zellij terminal stack — install, configure, use |
+| [ronWorkspace](./ronWorkspace/) | run | Personal workspace launchers (lighter-system development) |
 | [dev](./dev/) | reference | Development plans, examples, templates |
 | [.serena](./.serena/) | internal | AI assistant project config & memories |
 
@@ -72,6 +77,15 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
 - `lazy-lock.json` — plugin lockfile (Comment.nvim, lazy.nvim)
 
 **0-1** — Zero-to-One structured planning documents. Each document walks through: real-world problem → ideal state → concrete steps → evaluation with self & peer review.
+
+**ZellijAlacritty** — Alacritty+Zellij terminal stack:
+- `install.sh` — install/update Alacritty and Zellij binaries + configs
+- `set-default.sh` — auto-start Zellij on every graphical terminal
+- `ZellijAlacritty-101.md` — usage guide, keybindings, layouts, troubleshooting
+
+**ronWorkspace** — Personal workspace launchers:
+- `lighter-dev.bash` — launch lighter-system dev workspace (Alacritty+Zellij across virtual desktops)
+- `tests/test_lighter_dev.bats` — standalone bash test suite for lighter-dev.bash
 
 **.serena** — Serena AI project configuration:
 - `memories/` — per‑module memories (opencode/, super-bash/, espanso/, naming-conventions/, config/)
