@@ -9,14 +9,6 @@ permission:
   edit: allow
   write: allow
 
-  # Bash - minimal commands
-  bash:
-    "*": allow
-    # "cd *": allow
-    # "git log *": allow
-    # "git diff *": allow
-    # "git status *": allow
-
   # Context tools
   context7_*: allow
   webfetch: allow

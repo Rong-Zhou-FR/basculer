@@ -6,9 +6,6 @@ permission:
   # GitHub MCP operations - allow all
   mcp_github: allow
 
-  # Bash - allow only GitHub-related commands, ask for others
-  bash:allow
-
   # File operations - scoped to repository tasks
   read: allow
   write:

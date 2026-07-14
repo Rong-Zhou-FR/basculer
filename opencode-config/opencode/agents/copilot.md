@@ -2,13 +2,27 @@
 description: Full-access AI coding pair with safeguards on env files and external directories
 mode: primary
 permission:
-  "*": allow
   doom_loop: ask
   read:
     "*": allow
     "*.env": ask
     "*.env.*": ask
     "*.env.example": allow
+  edit: allow
+  write: allow
+  glob: allow
+  grep: allow
+  webfetch: allow
+  question: allow
+  todowrite: allow
+  list: allow
+  browser: allow
+  browser_clean: allow
+  browser_health: allow
+  browser_start: allow
+  browser_snapshot: allow
+  browser_click: allow
+  browser_type: allow
   codesearch: deny
   plan_enter:
     "*": allow

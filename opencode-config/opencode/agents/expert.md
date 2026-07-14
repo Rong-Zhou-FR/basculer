@@ -8,7 +8,6 @@ permission:
   glob: allow
   grep: allow
   list: allow
-  bash: allow
   task: allow
   websearch: allow
   webfetch: allow
