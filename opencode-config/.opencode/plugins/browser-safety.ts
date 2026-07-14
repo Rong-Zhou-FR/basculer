@@ -52,12 +52,15 @@ function killZombieChromes(): { killed: number; errors: string[] } {
 
 	try {
 		// Find all Chromium processes launched by Playwright
+		// NOTE: pattern MUST NOT start with "--" or pgrep treats it as an option flag.
 		const result = spawnSync(
 			"pgrep",
 			[
 				"-f",
 				// Match Chromium processes with Playwright-specific args
-				"--remote-debugging-pipe|playwright-browser|chrome-linux64/chrome.*headless",
+				// - remote-debugging-pipe: all Playwright Chromium processes use this
+				// - chrome-headless-shell: headless chromium binary path
+				"remote-debugging-pipe|chrome-headless-shell|chrome-linux64/chrome",
 			],
 			{ encoding: "utf8", timeout: KILL_TIMEOUT_MS },
 		)
@@ -92,7 +95,7 @@ function killZombieChromes(): { killed: number; errors: string[] } {
 				"pgrep",
 				[
 					"-f",
-					"--remote-debugging-pipe|playwright-browser|chrome-linux64/chrome.*headless",
+					"remote-debugging-pipe|chrome-headless-shell|chrome-linux64/chrome",
 				],
 				{ encoding: "utf8", timeout: 2000 },
 			)
@@ -267,11 +270,96 @@ function checkPlaywrightStatus(): {
 }
 
 // =============================================================================
+// GUIDANCE INJECTION (following metasearch2 plugin pattern)
+// =============================================================================
+
+/** Plugin marker for deduplication across config/transform/compacting hooks */
+const BROWSER_SAFETY_MARKER = "opencode-browser-safety"
+
+/** Guidance XML injected into the first user message of every turn */
+const BROWSER_SAFETY_GUIDANCE = `<BROWSER_SAFETY>
+The browser tool (\`browser\`) is provided by opencode-browser-plugin (v1.0.1).
+It uses Playwright's \`chromium.launchPersistentContext()\` with a persistent
+profile at \`~/.opencode/browser-profile/\`. This profile accumulates stale
+state across interrupted sessions and can cause the browser to hang.
+
+**Safety tools** (always available):
+- \`browser_health\` — Check Playwright/Chromium installation, profile state,
+  and running processes. Call this FIRST before using the browser.
+- \`browser_clean\` — Kill zombie Chromium processes and remove stale lock
+  files from the browser profile (does NOT require active browser session).
+  Pass \`force: true\` to also delete the entire profile directory.
+
+**Pre-launch checklist** (before any \`browser open\` or \`browser_start\`):
+1. Call \`browser_health\` to verify installation
+2. Clear stale profile: \`rm -rf ~/.opencode/browser-profile/\`
+3. Use \`http://127.0.0.1:<port>\` (not \`localhost\`) for local dev servers
+4. Pass explicit \`timeout\` (e.g. \`timeout=15000\`)
+5. Poll server with \`curl\` before opening
+
+**If ANY browser action hangs** (takes &gt;5s):
+1. STOP making further browser calls
+2. Run \`browser_clean\` (kills zombies, removes lock files)
+3. \`rm -rf ~/.opencode/browser-profile/\` then retry
+4. If that also hangs: \`pkill -f "remote-debugging-pipe"\` via bash, then retry
+</BROWSER_SAFETY>`
+
+// =============================================================================
 // PLUGIN ENTRY
 // =============================================================================
 
-const BrowserSafetyPlugin: Plugin = async () => {
+const BrowserSafetyPlugin: Plugin = async ({ client }) => {
 	return {
+		// -------------------------------------------------------------------------
+		// Config hook: push marker into instructions
+		// -------------------------------------------------------------------------
+		config: async (cfg) => {
+			cfg.instructions = cfg.instructions ?? []
+			const hasMarker = cfg.instructions.some(
+				(item) => typeof item === "string" && item.includes(BROWSER_SAFETY_MARKER),
+			)
+			if (!hasMarker) {
+				cfg.instructions.push(
+					`${BROWSER_SAFETY_MARKER}: browser_health and browser_clean tools available — use for safe browser automation`,
+				)
+			}
+		},
+
+		// -------------------------------------------------------------------------
+		// Messages transform: inject guidance into first user message each turn
+		// -------------------------------------------------------------------------
+		"experimental.chat.messages.transform": async (_input, output) => {
+			if (!output.messages?.length) return
+
+			const firstUser = output.messages.find((m) => m.info?.role === "user")
+			if (!firstUser?.parts?.length) return
+
+			const hasTag = firstUser.parts.some(
+				(p) =>
+					p.type === "text" &&
+					typeof p.text === "string" &&
+					p.text.includes("<BROWSER_SAFETY>"),
+			)
+			if (hasTag) return
+
+			firstUser.parts.unshift({
+				type: "text",
+				text: BROWSER_SAFETY_GUIDANCE,
+			} as any)
+		},
+
+		// -------------------------------------------------------------------------
+		// Session compacting: re-inject guidance so it survives compaction
+		// -------------------------------------------------------------------------
+		"experimental.session.compacting": async (_input, output) => {
+			output.context.push(`
+## Browser Safety (${BROWSER_SAFETY_MARKER})
+You have \`browser_health\` and \`browser_clean\` tools for safe browser use.
+Call \`browser_health\` first to verify browser state.
+If browser hangs, run \`browser_clean\` then \`rm -rf ~/.opencode/browser-profile/\`.
+`)
+		},
+
 		// -------------------------------------------------------------------------
 		// Diagnostic tools
 		// -------------------------------------------------------------------------
@@ -405,7 +493,9 @@ diagnose browser issues before attempting to use the browser tool.`,
 							"pgrep",
 							[
 								"-f",
-								"--remote-debugging-pipe|playwright-browser",
+								// NOTE: pattern MUST NOT start with "--" or pgrep treats it as an option.
+								// "remote-debugging-pipe" appears in all Playwright-launched Chromium processes.
+								"remote-debugging-pipe|chrome-headless-shell",
 							],
 							{ encoding: "utf8", timeout: 3000 },
 						)

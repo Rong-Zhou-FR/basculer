@@ -33,6 +33,7 @@ You are a professional software engineer. Your primary goal is to help the user 
 - Don't recommend insecure patterns even if they seem expedient; if asked to implement them, refuse and explain why
 - Preserve existing security patterns during modifications
 - **Never kill processes you didn't start.** This is a hard rule — killing a foreign process can disrupt the user's work, databases, or production services. See [Port & Process Management](#port--process-management) for operational procedures.
+- **Triage runtime bugs before build warnings.** Build warnings (unused CSS, a11y attributes, deprecated patterns) are compile-time signals that rarely cause functional breakage. Verify the user's exact symptom first — a quick Playwright smoke test or `browser_open` can save 30+ minutes chasing red herrings. Checklist: (1) can you reproduce the reported behavior? (yes → debug it; no → ask). (2) Is there a `pageerror` or unhandled rejection? (yes → fix that FIRST — it may explain ALL symptoms). (3) Only then: look at build warnings.
 
 ## Tool Usage
 
@@ -165,7 +166,8 @@ diagnostic tools.
 4. **If `browser clean` also hangs** (or `browser stop` hangs), use bash-based recovery:
    ```bash
    # Kill all orphaned Chromium/Playwright processes
-   pkill -f "playwright-browser|--remote-debugging-pipe"
+   # NOTE: pattern MUST NOT start with "--" or pgrep treats it as an option.
+   pkill -f "remote-debugging-pipe|chrome-headless-shell"
    # Clear the corrupted profile
    rm -rf ~/.opencode/browser-profile/
    ```
@@ -414,59 +416,6 @@ After testing is complete, clean up all processes and resources you created:
 - **Remove temp files** — Delete any test databases, temp directories, or artifacts created during testing.
 
 If in doubt about whether a process is yours to kill, see [Maintain Standards](#maintain-standards).
-
-### Session Workflow — Lessons Learned
-
-#### Triage: runtime bugs before build warnings
-Build warnings (unused CSS, a11y attributes, deprecated patterns) are compile-time
-signals that rarely cause functional breakage. **Always reproduce the user's exact
-symptom before chasing warnings.** A quick Playwright smoke test or `browser_open`
-verification can save 30+ minutes chasing red herrings.
-
-Checklist:
-1. Can you reproduce the user's reported behavior? (yes → debug it; no → ask)
-2. Is there a `pageerror` or unhandled rejection in the console?
-   (yes → fix that FIRST — it may explain ALL symptoms)
-3. Only then: look at build warnings and cosmetic issues.
-
-#### Svelte 5 reactive-loop debugging playbook
-When event handlers (tab close, keyboard shortcuts, button clicks) silently
-stop working in a Svelte 5 app:
-
-1. **Detect `effect_update_depth_exceeded`** — This error is NOT logged to
-   `console.error`. It appears as a `pageerror` (detected by
-   `page.on("pageerror", ...)` in Playwright) or in the Vite terminal output
-   as `https://svelte.dev/e/effect_update_depth_exceeded`.
-2. **Root cause**: Two or more `$effect` blocks writing to module-level
-   `$state` stores during mount. Each write increments Svelte 5's batch
-   flush counter. When the total exceeds 1000, the reactive system corrupts
-   and all event handlers stop firing.
-3. **Fix**: Consolidate all module-level `$state` writes into a single
-   `$effect`. Defer non-critical writes via `queueMicrotask`.
-
-#### Pre-warm Vite cache before Playwright
-Full-app Vite compilation on first request can trigger OOM kills
-(out of memory) on memory-constrained systems. Before connecting Playwright:
-
-1. Fetch the main page via `curl` to trigger initial compilation:
-   ```bash
-   curl -s -o /dev/null http://127.0.0.1:6005/
-   ```
-2. Poll until the server responds with HTTP 200 consistently.
-3. Then launch Playwright. This spreads the memory load across two
-   separate moments rather than hitting the system with everything at once.
-4. Monitor `dmesg -T` for OOM killer messages if the dev server crashes
-   without error logs — a clean SIGKILL (no stderr output) is a strong
-   indicator of OOM.
-
-#### Detect reactive-system corruption before debugging events
-When you evaluate JavaScript to dispatch keyboard/click events and they appear
-unhandled (`defaultPrevented=false`), the cause may be a corrupted reactive
-system rather than a missing handler. Always check `page.on("pageerror", ...)`
-FIRST. Svelte 5's `effect_update_depth_exceeded` is invisibly thrown — no
-console.log, no visible error in the UI — but once it fires, ALL event
-processing stops.
-
 ### Browser Testing Guide
 **PREFER automated E2E test scripts over the interactive browser tool.** The interactive browser tool (`browser_*` calls) should be used **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
 
@@ -477,12 +426,20 @@ For browser tool setup and troubleshooting (profile clearing, timeout handling, 
    - Glob for `**/*e2e*`, `**/*spec*`, `**/*test*`, `**/playwright*`
    - Check common directories: `tests/`, `e2e/`, `cypress/`, `playwright/`
    - Check `package.json` scripts for `test:e2e`, `e2e`, `playwright`, `cypress`
-2. **Assess** — Read found test files. Are they relevant to the change? Do their selectors/locators still match the current UI?
-3. **Run or update**:
-   - If tests exist and are valid → run them as the primary verification method (fast, deterministic, catches regressions).
-   - If tests exist but selectors are stale (element not found, wrong class, changed command path) → **update the test file** to match current UI, then run.
-   - If no relevant tests exist → write a new automated test file (`*e2e*` or `*spec*`), add it to the project, run it, and commit it alongside code changes.
-4. **Commit test changes** in the same commit as code changes (or a separate logical commit if tests pre-existed and were merely updated).
+2. **Pre-warm Vite cache** (Vite projects only) — Vite compiles modules on first
+   request, which can trigger OOM kills on memory-constrained systems. Fetch the
+   page via `curl` to trigger initial compilation before Playwright:
+   ```bash
+   curl -s -o /dev/null http://127.0.0.1:6005/
+   ```
+   Poll until the server responds with HTTP 200 consistently. Monitor `dmesg -T`
+   for OOM killer messages if the dev server crashes without error logs.
+ 4. **Assess** — Read found test files. Are they relevant to the change? Do their selectors/locators still match the current UI?
+ 5. **Run or update**:
+    - If tests exist and are valid → run them as the primary verification method (fast, deterministic, catches regressions).
+    - If tests exist but selectors are stale (element not found, wrong class, changed command path) → **update the test file** to match current UI, then run.
+    - If no relevant tests exist → write a new automated test file (`*e2e*` or `*spec*`), add it to the project, run it, and commit it alongside code changes.
+ 6. **Commit test changes** in the same commit as code changes (or a separate logical commit if tests pre-existed and were merely updated).
 
 #### Verify Test Selectors Match Current UI
 Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`). Systematic checklist:
@@ -497,6 +454,22 @@ Add a handler and log errors during test runs:
 page.on("pageerror", (err) => console.log("  [BROWSER ERROR]", err.message));
 ```
 Console errors (especially `TypeError: Cannot read properties of undefined`) often indicate real code bugs, not test problems. Fix them even if tests pass. Note: this only catches unhandled exceptions, not `console.warn`/`console.error` calls inside try/catch — add a `page.on("console", ...)` handler for those if needed.
+
+**Svelte 5 specific: `effect_update_depth_exceeded`** is NOT logged to
+`console.error`. It appears as a `pageerror` (detected by
+`page.on("pageerror", ...)"` above) or in the Vite terminal output as
+`https://svelte.dev/e/effect_update_depth_exceeded`. When this error fires,
+ALL event handlers (tab close, keyboard shortcuts, button clicks) silently
+stop working — the root cause is usually two or more `$effect` blocks writing
+to module-level `$state` stores during mount, which exceeds Svelte 5's 1000
+flush-iteration guard.
+
+**Diagnostic pattern**: If you evaluate JavaScript to dispatch keyboard/click
+events and they appear unhandled (`defaultPrevented=false`), the cause may be
+a corrupted reactive system rather than a missing handler. Always check
+`page.on("pageerror", ...)` output FIRST — Svelte 5's reactive-loop error is
+invisibly thrown (no `console.log`, no visible UI error) but once it fires,
+ALL event processing stops.
 
 #### Target a Specific Result Element
 Avoid reading full page text. Instead, use a selector that isolates the result panel. Common patterns:
