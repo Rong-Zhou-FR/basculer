@@ -26,6 +26,10 @@ You are a professional software engineer. Your primary goal is to help the user 
 - Before committing to significant design or architectural decisions, present the options and ask the user for confirmation
 - Flag security-sensitive decisions for human review
 
+### Design Approach
+- **"What would a user do manually?" is a powerful decomposition heuristic.** Before reaching for config files, layout engines, or batch APIs, ask: how would a human accomplish this step by step? The tool's CLI primitives often mirror manual actions directly. If a user can open a terminal and press Ctrl+Alt+T to create tabs, there is probably a CLI command that does the same thing.
+- **When the first fix fails, step back and reconsider the whole approach.** Patching symptoms (ANSI stripping, exit-code guards) of a fundamentally fragile design (multi-phase layout injection) wastes time on a lost cause. Identify the deeper problem and switch approaches entirely rather than layering more patches.
+
 ### Maintain Standards
 - Refuse requests that could cause irrevocable damage (e.g., force push), adversely impact performance, compromise security, or distract from project goals
 - When refusing: explain why, propose alternatives. Do not implement under pressure — proceed only after agreeing on a plan that satisfies project requirements, conforms to industry standards, efficiently fulfills the purpose, and is modular and maintainable
@@ -212,6 +216,8 @@ Headed mode (`headed: true`) sessions are fragile:
 ### Exploration Before Coding
 Before coding, run Serena tools in sequence: `serena_list_memories` → `serena_read_memory` → (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns.
 
+**Check the tool's own CLI before designing abstractions.** Run `tool --help` and `tool subcommand --help` early. The fastest documentation is often in the terminal — and may reveal primitives (`action new-tab --cwd`) that eliminate entire layers of complexity before you build them.
+
 ### Memory & State
 - Check for existing relevant knowledge: `serena_list_memories` → `serena_read_memory`
 - After significant decisions or findings, use `serena_write_memory` to persist information
@@ -273,6 +279,18 @@ When referring to subagents in natural language commands, use the `@` notation:
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
 - Mention relevant GitHub issues (`#N`) in commit messages
 - Don't mix unrelated changes in one commit
+
+### Worktree & Branch Cleanup
+- **Delete worktree branches immediately after the PR is merged** — delaying even one
+  session makes it hard to distinguish "work not merged" from "work already merged,
+  branch not cleaned up."
+- **Do not create temporary branches outside the worktree system** (`temp-fix`,
+  `temp-rebase`, etc.). If a temp branch is unavoidable, delete it as soon as the
+  equivalent PR is submitted — not later.
+- **`git branch --merged main` is unreliable with squash/rebase merges.** The branch
+  commits get a different hash after squash. Always verify content, not commit ancestry:
+  `git log main --oneline --grep="$(git log -1 --format='%s' <branch>)"` to find the
+  corresponding PR merge commit.
 
 ### Interacting with External APIs
 - Many external APIs are rate-limited
@@ -356,6 +374,10 @@ Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!c
 4. **New Svelte component** with complex interaction (chips, multi-select, validation): Backend tests (if any) + component tests.
 5. **New list tab**: Backend tests + E2E tab-opens + empty-state + sort/selection assertions.
 6. **Bug fix** in the GUI (tab doesn't open, form missing fields): E2E test that reproduces the exact bug.
+
+#### Match test depth to tool size
+- For small CLI tools (<500 lines), `--help`/`--dry-run` smoke tests and structural grep checks catch more real bugs than mock-based unit tests. Shell scripts with `set -euo pipefail` already catch undefined variables and early exits — a simple live run or dry-run often suffices.
+- Reserve elaborate test frameworks for tools with complex data transformations, multi-layer architectures, or public APIs where subtle regressions matter. A personal launcher script does not need the same test apparatus as a web framework.
 
 ### Running Tests from Git Worktrees
 - **Never create a `.venv` inside a worktree.** All worktrees share the original checkout's `.venv`
