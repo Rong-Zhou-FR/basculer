@@ -17,8 +17,8 @@
 #     opencode-config:  opencode       | shell
 #     scratch:          nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md
 #   WS 5 (desk 4) — 2 terminals:
-#     lighterbird:      omaster
-#     semantika:        omaster
+#     lighterbird:      omaster | shell
+#     semantika:        omaster | shell
 #
 # Prerequisites:
 #   - alacritty       terminal emulator
@@ -203,8 +203,8 @@ main() {
             log_info "  scratch:         nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md"
             echo ""
             log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
-            log_info "  lighterbird:     omaster"
-            log_info "  semantika:       omaster"
+            log_info "  lighterbird:     omaster | shell"
+            log_info "  semantika:       omaster | shell"
             exit 0
             ;;
     esac
@@ -260,10 +260,12 @@ main() {
     # ── Workspace 5: lighterbird + semantika master ────────────────────
     log_info "=== Workspace 5 ==="
     launch_term "$DESK_WS5" "lighterbird-master" \
-        "master|${DIR_LIGHTERBIRD}|${CMD_MASTER}"
+        "master|${DIR_LIGHTERBIRD}|${CMD_MASTER}" \
+        "shell|${DIR_LIGHTERBIRD}|"
 
     launch_term "$DESK_WS5" "semantika-master" \
-        "master|${DIR_SEMANTIKA}|${CMD_MASTER}"
+        "master|${DIR_SEMANTIKA}|${CMD_MASTER}" \
+        "shell|${DIR_SEMANTIKA}|"
 
     echo ""
     log_ok "All terminals launched. Zellij sessions are running."
