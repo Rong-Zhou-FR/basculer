@@ -5,3 +5,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+
+# Symlinks to external repos
+opencode-config/.opencode/plugins/browser-safety.ts
+opencode-config/.opencode/tests/browser-safety.test.ts

@@ -38,11 +38,14 @@ basculer/
 **opencode** — opencode IDE config (agents, commands, context-mode sessions, model configs, plugins). Now at `opencode-config/opencode/` (config) and `opencode-config/.opencode/` (project plugins). See [opencode-config/AGENTS.md](./opencode-config/AGENTS.md).
 
 Plugins:
-- `browser-safety.ts` — safety wrapper for the browser tool; provides per-session
-  browser isolation (each session gets its own Chromium process), auto-clears stale
-  lock files, kills zombie Chromium processes, and injects browser safety guidance
-  into the LLM context. Overrides the original browser plugin's tools. Registered via
-  `.opencode/opencode.jsonc`. See [plugin source](./opencode-config/.opencode/plugins/browser-safety.ts).
+- `browser-safety.ts` (symlinked to
+  [opencode-safe-playwright](https://github.com/Ron-RONZZ-org/opencode-safe-playwright))
+  — standalone browser plugin with per-session Chromium isolation. Each session gets
+  its own browser process and profile directory. Provides `browser_health` and
+  `browser_clean` diagnostic tools, auto-clears stale lock files, kills zombie
+  Chromium processes, and injects browser safety guidance into every LLM turn.
+  Source lives in its own repo at `~/kodo/opencode-tweaks/opencode-safe-playwright/`.
+  Registered via `.opencode/opencode.jsonc`.
 
 **super-bash** — pure-bash utility collections:
 - `bash-dev.bash` — dev helpers (git, docker, etc.)
