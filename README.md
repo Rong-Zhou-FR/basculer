@@ -32,6 +32,8 @@ ln -sf ~/.basculer/nvim ~/.config/nvim
 | `super-bash/` | source | Bash utility functions |
 | `espanso/` | symlink | Text expansion matches |
 | `nvim/` | symlink | Neovim config |
+| `ZellijAlacritty/` | run | Alacritty+Zellij terminal stack — install, configure, use |
+| `ronWorkspace/` | run | Personal workspace launchers (lighter-system development) |
 | `0-1/` | standalone | Zero-to-One planning framework |
 | `dev/` | reference | Development docs & templates |
 
