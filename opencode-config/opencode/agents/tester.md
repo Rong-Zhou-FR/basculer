@@ -12,8 +12,6 @@ permission:
     "*.spec.*": allow
     "tests/**": allow
     "__tests__/**": allow
-  # Allow running tests
-  bash: allow
   # Context tools
   context7_*: allow
   webfetch: allow

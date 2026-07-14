@@ -15,7 +15,6 @@ permission:
   serena_replace_content: deny
   edit: deny
   write: deny
-  bash: allow
 
   # Allow context tools for research
   context7_*: allow

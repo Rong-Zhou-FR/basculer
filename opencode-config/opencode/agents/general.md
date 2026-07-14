@@ -2,13 +2,20 @@
 description: General-purpose task executor for complex multi-step work
 mode: subagent
 permission:
-  "*": allow
   doom_loop: ask
   read:
     "*": allow
     "*.env": ask
     "*.env.*": ask
     "*.env.example": allow
+  edit: allow
+  write: allow
+  glob: allow
+  grep: allow
+  webfetch: allow
+  question: allow
+  todowrite: allow
+  list: allow
   codesearch: deny
   # MCP fine-grained control
   context7_*: allow

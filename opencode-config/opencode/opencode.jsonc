@@ -94,7 +94,10 @@
       "truncate -s 0*": "ask",             // truncates files to zero bytes
       "dd if=/dev/zero of=*": "ask",       // zeroes out files or disks
       "rm -rf*": "ask",                    // classic filesystem nuke
-      "rm -fr*": "ask"                     // same, flag order swapped
+      "rm -fr*": "ask",                    // same, flag order swapped
+      "pkill*": "ask",                     // kills processes by name/pattern — inherently imprecise
+      "killall*": "ask",                   // same, different tool
+      "kill -9*": "ask"                    // SIGKILL by PID — can't be caught, data-loss risk
     },
     "external_directory": {
       "*": "ask",
