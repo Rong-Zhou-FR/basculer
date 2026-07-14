@@ -128,8 +128,10 @@ user interruption, agent restart) while the browser is active:
    actions to hang indefinitely
 
 The `browser-safety` plugin (auto-loaded from `.opencode/plugins/browser-safety.ts`)
-mitigates this by cleaning stale state before browser operations and providing
-diagnostic tools.
+**replaces** the browser plugin's tools with per-session-isolated versions:
+each opencode session gets its OWN Chromium process and profile directory.
+The original browser plugin's tools still exist but are shadowed by the safety
+plugin's overrides (loaded later in the plugin array).
 
 #### Pre-launch checklist
 
