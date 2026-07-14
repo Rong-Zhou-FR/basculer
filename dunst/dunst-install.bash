@@ -15,12 +15,12 @@
 #   3. Writes a comprehensive dunstrc with per-app blocking examples
 #      (uses POSIX regex — enable_posix_regex = true)
 #   4. Sets Cinnamon's allow-other-notification-handlers → true
-#   5. Masks the systemd dunst.service so it doesn't interfere
+#   5. Unmasks, enables, and starts dunst via systemd --user
 #   6. Restarts Cinnamon shell (in-place, keeps all apps) so it releases
 #      the org.freedesktop.Notifications D-Bus name
-#   7. Starts dunst and verifies it OWNS the D-Bus name
-#   8. Registers dunst for autostart in Cinnamon
-#      (autostart, NOT systemd — masks the package's dunst.service)
+#   7. Restarts dunst.service so it claims the D-Bus name
+#   8. Verifies dunst OWNS the D-Bus name
+#   9. Sends a test notification
 
 set -euo pipefail
 
@@ -249,30 +249,29 @@ else
 fi
 
 # ── Step 5: Handle systemd service ───────────────────────────────────
-header "Systemd: masking package dunst.service"
+header "Systemd: enabling dunst.service"
 
-# The dunst package installs /usr/lib/systemd/user/dunst.service (static).
-# When systemd sees dunst running, it may adopt or restart it, causing
-# conflicts (multiple instances, stubborn PIDs). We mask it so systemd
-# leaves dunst alone and we manage it via autostart instead.
+# The dunst package installs /usr/lib/systemd/user/dunst.service with
+# Type=dbus and BusName=org.freedesktop.Notifications, making it eligible
+# for D-Bus activation. We use systemd --user for lifecycle management:
+#   - Enable → auto-starts on login (graphical-session.target)
+#   - D-Bus activation → starts on demand when any app sends a notification
+#
+# If dunst.service was previously masked (by a prior run of this script),
+# unmask it first.
 if systemctl --user --quiet is-active dunst 2>/dev/null; then
-    info "stopping systemd dunst.service..."
+    info "stopping current dunst.service..."
     systemctl --user stop dunst 2>/dev/null || true
 fi
 if systemctl --user --quiet is-failed dunst 2>/dev/null; then
     systemctl --user reset-failed dunst 2>/dev/null || true
 fi
-systemctl --user mask dunst 2>/dev/null
-info "masked dunst.service (systemd will not restart it)"
-
-# Also kill any leftover manual dunst instances
-pkill -9 dunst 2>/dev/null || true
-sleep 0.5
-# Confirm no dunst process remains (ignore zombies owned by other users)
-LIVE=$(pgrep -u "$USER" -x dunst 2>/dev/null || true)
-if [[ -n "$LIVE" ]]; then
-    warn "stale dunst PID $LIVE still alive (may be a zombie, can be ignored)"
+if [[ "$(systemctl --user is-enabled dunst 2>/dev/null)" == "masked" ]]; then
+    systemctl --user unmask dunst 2>/dev/null
+    info "unmasked dunst.service"
 fi
+systemctl --user enable dunst 2>/dev/null
+info "enabled dunst.service (systemd will manage lifecycle)"
 
 # ── Step 6: Force Cinnamon to release the D-Bus name ────────────────
 header "Taking over notification D-Bus service"
@@ -291,12 +290,18 @@ setsid cinnamon --replace > /tmp/cinnamon-restart.log 2>&1 &
 # Wait for Cinnamon to restart
 sleep 5
 
-# Start dunst with setsid so it survives the bash tool's timeout
-info "starting dunst..."
-setsid /usr/bin/dunst > /tmp/dunst.log 2>&1 &
+# ── Step 7: Start dunst via systemd ───────────────────────────────────
+header "Starting dunst via systemd"
+
+# Now that Cinnamon has released the D-Bus name, start dunst.service.
+# systemd will manage the process lifecycle and handle D-Bus activation.
+info "starting dunst.service..."
+systemctl --user start dunst 2>/dev/null
 sleep 2
 
-# ── Verify: check who OWNS the name, not just that it exists ────────
+# ── Step 8: Verify ───────────────────────────────────────────────────
+header "Verifying D-Bus name ownership"
+
 OWNER=$(busctl --user list 2>/dev/null \
     | awk '/^org\.freedesktop\.Notifications/ {print $2}')
 
@@ -306,34 +311,14 @@ if [[ "$OWNER" == "dunst" ]]; then
     info "dunst owns org.freedesktop.Notifications (PID $PID)"
 else
     err "Cinnamon still owns org.freedesktop.Notifications (owner: $OWNER)"
-    err "Log out and back in, or run:  cinnamon --replace  &&  setsid /usr/bin/dunst &"
+    err ""
+    err "Try:  cinnamon --replace && systemctl --user restart dunst"
+    err ""
+    err "If that doesn't work, log out and back in to pick up changes."
     exit 1
 fi
 
-# ── Step 7: Autostart via ~/.config/autostart ────────────────────────
-header "Setting up autostart"
-
-mkdir -p "$HOME/.config/autostart"
-
-# We use autostart (not systemd) because:
-#   - The package's dunst.service is static and conflicts with manual mgmt
-#   - Autostart lets us add a small delay so Cinnamon's own handler
-#     (which starts during session init) releases the D-Bus name first
-cat > "$HOME/.config/autostart/dunst.desktop" << 'DESKTOP'
-[Desktop Entry]
-Type=Application
-Name=Dunst Notification Daemon
-Comment=Lightweight notification daemon with per-app filtering
-Exec=sh -c "sleep 3 && setsid /usr/bin/dunst > /tmp/dunst.log 2>&1"
-StartupNotify=false
-Terminal=false
-Categories=Utility;
-X-Cinnamon-Autostart-Enabled=true
-DESKTOP
-
-info "autostart entry written → ~/.config/autostart/dunst.desktop"
-
-# ── Step 8: Test ─────────────────────────────────────────────────────
+# ── Step 9: Test ─────────────────────────────────────────────────────
 header "Testing"
 
 echo -e "  Sending test notification..."
@@ -353,15 +338,17 @@ echo ""
 echo "  Next steps:"
 echo "    1. Trigger an opencode notification — you should see banner + hear sound"
 echo "    2. To block an app, edit ~/.config/dunst/dunstrc, uncomment a rule"
-echo "    3. Restart dunst:  systemctl --user mask dunst; pkill dunst; setsid /usr/bin/dunst &"
+echo "    3. Restart dunst:  systemctl --user restart dunst"
 echo ""
 echo "  Commands:"
-echo "    dunstctl history           show recent notifications with metadata"
-echo "    dunstctl close             close current notification"
-echo "    dunstctl close-all         close all notifications"
-echo "    dunstctl is-paused         check if notifications are paused"
-echo "    dunstctl set-paused true   pause all notifications"
+echo "    systemctl --user status dunst   check dunst is running"
+echo "    dunstctl history                show recent notifications with metadata"
+echo "    dunstctl close                  close current notification"
+echo "    dunstctl close-all              close all notifications"
+echo "    dunstctl is-paused              check if notifications are paused"
+echo "    dunstctl set-paused true        pause all notifications"
 echo ""
 echo "  File: ~/.config/dunst/dunstrc"
-echo "  Note: dunst.service is masked — use autostart or manual start only"
+echo "  Note: dunst.service is enabled via systemd --user."
+echo "        It starts automatically on login and via D-Bus activation."
 echo ""
