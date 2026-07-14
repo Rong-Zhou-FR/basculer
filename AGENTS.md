@@ -35,7 +35,12 @@ basculer/
 
 ### Module details
 
-**opencode** — opencode IDE config (agents, commands, context-mode sessions, model configs). Now at `opencode-config/opencode/`. See [opencode-config/AGENTS.md](./opencode-config/AGENTS.md).
+**opencode** — opencode IDE config (agents, commands, context-mode sessions, model configs, plugins). Now at `opencode-config/opencode/` (config) and `opencode-config/.opencode/` (project plugins). See [opencode-config/AGENTS.md](./opencode-config/AGENTS.md).
+
+Plugins:
+- `browser-safety.ts` — safety wrapper for the browser tool; auto-clears stale lock files
+  and kills zombie Chromium processes before browser operations. Registered via
+  `.opencode/opencode.jsonc`. See [plugin source](./opencode-config/.opencode/plugins/browser-safety.ts).
 
 **super-bash** — pure-bash utility collections:
 - `bash-dev.bash` — dev helpers (git, docker, etc.)

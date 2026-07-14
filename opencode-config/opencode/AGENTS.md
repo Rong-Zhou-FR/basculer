@@ -90,6 +90,8 @@ Use when modifying code definitions:
 - **Spinning up long-running dev servers:**
   - Use `setsid` to detach the process so it survives the bash tool's timeout (see above)
   - **Record the PID on start** — Save the PID so cleanup can kill by recorded PID instead of port-based guessing:
+  - **Pre-warm the Vite dev server before launching Playwright** (see [Browser Testing Guide](#browser-testing-guide))
+  - **Check `dmesg -T` for OOM kills** if the dev server crashes without error output
     ```bash
     # Node.js (Next.js, Nuxt, Vite dev server) — $! captures the setsid PID
     setsid npx nuxt dev --port 3000 --host 0.0.0.0 > /tmp/nuxt-dev.log 2>&1 &
@@ -99,32 +101,91 @@ Use when modifying code definitions:
     setsid bash -c 'uv run uvicorn app:create_app --factory --port 8000 > /tmp/server.log 2>&1 & echo $! > /tmp/server.pid'
     ```
   - **Restart the server if you rebuild the frontend** — The server caches built SPA files (e.g. `web/dist/`) in memory. After `npm run build` or equivalent, read the saved PID, kill the old server (`kill $(cat /tmp/nuxt-dev.pid)`), and start a new one.
+- **Worktree checklist** — Git worktrees do NOT share `node_modules` with the
+  original repo. When working in a worktree, always verify:
+  ```bash
+  ls -la node_modules/          # empty? → run npm install or relink
+  ```
+  If `node_modules` is missing, `file:` dependencies (e.g. `@lightercore/ui`)
+  cannot resolve and Vite crashes with `MODULE_NOT_FOUND`.
 
 ### Browser Tool
-- **Always clear the browser profile before the first `browser open` call** in a session: `rm -rf ~/.opencode/browser-profile/`. The persistent profile is the #1 cause of hangs — interrupted sessions leave it corrupted, and subsequent Chromium launches fail silently with a 180-second timeout.
-- When using the browser tool to connect to a local dev server, **always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
-  - **Why**: Python's `http.server` and many dev servers (nuxi, vite, webpack-dev-server) bind to IPv4 (`0.0.0.0`) by default, not IPv6 (`::`). Chromium resolves `localhost` to `::1` first (via Happy Eyeballs / system resolver), which gets `ERR_CONNECTION_REFUSED`.
-  - The server needs to be detached via `setsid` as described in the [Command Execution](#command-execution) section for long-running processes.
-- **Always pass an explicit `timeout`** to `browser open` calls (e.g. `timeout=15000`). The default 30s timeout does NOT override Playwright's internal 180s browser-launch timeout (`launchPersistentContext`), so a failing browser launch can appear stuck for 3 minutes.
-- **Verify the server is accepting connections BEFORE calling `browser open`**: poll the URL with `curl` in a loop until it returns HTTP 2xx/3xx. Without this check, the browser may try to connect to a server that isn't ready, causing the page load to hang.
+
+The browser tool is provided by the `opencode-browser-plugin` (v1.0.1) which uses
+Playwright's `chromium.launchPersistentContext()` with a persistent profile at
+`~/.opencode/browser-profile/`. This design has a known failure mode:
+
+**Root cause**: The browser plugin's module-level `state` persists in the long-running
+opencode server process across sessions. When a session is interrupted (tool timeout,
+user interruption, agent restart) while the browser is active:
+1. The Chromium process may be killed ungracefully, but `state.context` remains set
+2. `ensureBrowser()` never validates that `state.context` is still alive — it checks
+   only nullity, not liveness
+3. The plugin ignores `context.abort` (the AbortSignal from ToolContext), so hung
+   operations are never cancelled when the LLM moves on
+4. Subsequent browser operations silently target the dead context, causing ALL
+   actions to hang indefinitely
+
+The `browser-safety` plugin (auto-loaded from `.opencode/plugins/browser-safety.ts`)
+mitigates this by cleaning stale state before browser operations and providing
+diagnostic tools.
+
+#### Pre-launch checklist
+
+- **Always clear the browser profile before the first `browser open`:** `rm -rf ~/.opencode/browser-profile/`. The persistent profile accumulates stale databases across interrupted sessions.
+- **Call `browser_health` first** to verify Playwright/Chromium are installed and no zombie processes exist.
+- **Always use `http://127.0.0.1:<port>`** instead of `http://localhost:<port>`.
+  - **Why**: Chromium resolves `localhost` to `::1` first, but many dev servers bind only to IPv4 (`0.0.0.0`). This causes `ERR_CONNECTION_REFUSED`.
+  - Detach dev servers via `setsid` as described in [Command Execution](#command-execution).
+- **Always pass an explicit `timeout`** to `browser open` (e.g. `timeout=15000`). The default 30s does NOT override Playwright's internal 180s browser-launch timeout (`launchPersistentContext`).
+- **Verify the server BEFORE calling `browser open`**: poll with `curl`:
   ```bash
-  # Wait for server (timeout after 30s)
   for i in $(seq 1 30); do
     curl -sf -o /dev/null http://127.0.0.1:5173/ && break
     sleep 1
   done
   ```
-- **If ANY browser tool call hangs** (takes >15s to respond), stop making further browser calls immediately — they will all hang on the same stuck Chromium process. Run recovery:
-  1. `browser stop` — kill the stuck browser instance
-  2. `rm -rf ~/.opencode/browser-profile/` — clear the now-corrupted profile
-  3. Retry fresh with a new `browser open` call
-- **If the browser tool hangs twice** (recovery + retry both fail), stop using the interactive browser tool entirely. Use an alternative approach instead:
-  - **`webfetch` tool** — for pages that don't need JS execution; fetches HTML and returns structured text.
-  - **`bash` + `npx playwright test <script>`** — for full E2E tests. Write a Playwright test script, run it via `bash`, and read the output. This launches a separate Chromium process independent of the built-in browser plugin's profile.
-- **Headed mode (`headed: true`) sessions are fragile:**
-  - Any in-flight browser tool call that gets interrupted (e.g. user types "continue" mid-action) leaves the browser in an inconsistent state with no way to recover the session.
-  - Always prefer **headless mode** (`headed: false`) for automated checks.
-  - Only use headed mode to visually debug a specific issue, and avoid interrupting it while actions are queued.
+
+#### Safety tools
+
+- **`browser_clean`** (from `browser-safety` plugin): Kills zombie Chromium processes,
+  removes stale lock files, and optionally force-clears the entire profile. Use this as
+  the first step when the browser is unresponsive.
+- **`browser_health`** (from `browser-safety` plugin): Reports Playwright/Chromium
+  installation status, profile state, stale lock files, and running processes.
+
+#### Hang recovery procedure
+
+**If ANY browser tool call hangs** (takes >5s to respond):
+
+1. **STOP** making further browser calls — they will all hang on the same stuck state.
+2. **Run `browser_clean`** first — it kills zombie processes and removes lock files
+   without requiring a working browser context.
+3. **If `browser_clean` works** → `rm -rf ~/.opencode/browser-profile/` → retry.
+4. **If `browser clean` also hangs** (or `browser stop` hangs), use bash-based recovery:
+   ```bash
+   # Kill all orphaned Chromium/Playwright processes
+   pkill -f "playwright-browser|--remote-debugging-pipe"
+   # Clear the corrupted profile
+   rm -rf ~/.opencode/browser-profile/
+   ```
+5. **Retry** with a fresh `browser open` call.
+
+**If recovery fails twice**, stop using the interactive browser tool. Use alternatives:
+- **`webfetch` tool** — for pages that don't need JS execution; fetches HTML and
+  returns structured text.
+- **`bash` + `npx playwright test <script>`** — for full E2E tests. Write a Playwright
+  test script, run it via `bash`, and read the output. This launches a separate
+  Chromium process independent of the built-in browser plugin's profile.
+
+#### Headed mode
+
+Headed mode (`headed: true`) sessions are fragile:
+- Any in-flight browser tool call that gets interrupted (e.g. user types "continue"
+  mid-action) leaves the browser in an inconsistent state.
+- Always prefer **headless mode** (`headed: false`) for automated checks.
+- Only use headed mode to visually debug a specific issue, and avoid interrupting it
+  while actions are queued.
 
 ### Port & Process Management
 - **Check before using a port** — Run `ss -tlnp` to verify a port is free before starting any server. Do not assume a port is available.
@@ -353,6 +414,58 @@ After testing is complete, clean up all processes and resources you created:
 - **Remove temp files** — Delete any test databases, temp directories, or artifacts created during testing.
 
 If in doubt about whether a process is yours to kill, see [Maintain Standards](#maintain-standards).
+
+### Session Workflow — Lessons Learned
+
+#### Triage: runtime bugs before build warnings
+Build warnings (unused CSS, a11y attributes, deprecated patterns) are compile-time
+signals that rarely cause functional breakage. **Always reproduce the user's exact
+symptom before chasing warnings.** A quick Playwright smoke test or `browser_open`
+verification can save 30+ minutes chasing red herrings.
+
+Checklist:
+1. Can you reproduce the user's reported behavior? (yes → debug it; no → ask)
+2. Is there a `pageerror` or unhandled rejection in the console?
+   (yes → fix that FIRST — it may explain ALL symptoms)
+3. Only then: look at build warnings and cosmetic issues.
+
+#### Svelte 5 reactive-loop debugging playbook
+When event handlers (tab close, keyboard shortcuts, button clicks) silently
+stop working in a Svelte 5 app:
+
+1. **Detect `effect_update_depth_exceeded`** — This error is NOT logged to
+   `console.error`. It appears as a `pageerror` (detected by
+   `page.on("pageerror", ...)` in Playwright) or in the Vite terminal output
+   as `https://svelte.dev/e/effect_update_depth_exceeded`.
+2. **Root cause**: Two or more `$effect` blocks writing to module-level
+   `$state` stores during mount. Each write increments Svelte 5's batch
+   flush counter. When the total exceeds 1000, the reactive system corrupts
+   and all event handlers stop firing.
+3. **Fix**: Consolidate all module-level `$state` writes into a single
+   `$effect`. Defer non-critical writes via `queueMicrotask`.
+
+#### Pre-warm Vite cache before Playwright
+Full-app Vite compilation on first request can trigger OOM kills
+(out of memory) on memory-constrained systems. Before connecting Playwright:
+
+1. Fetch the main page via `curl` to trigger initial compilation:
+   ```bash
+   curl -s -o /dev/null http://127.0.0.1:6005/
+   ```
+2. Poll until the server responds with HTTP 200 consistently.
+3. Then launch Playwright. This spreads the memory load across two
+   separate moments rather than hitting the system with everything at once.
+4. Monitor `dmesg -T` for OOM killer messages if the dev server crashes
+   without error logs — a clean SIGKILL (no stderr output) is a strong
+   indicator of OOM.
+
+#### Detect reactive-system corruption before debugging events
+When you evaluate JavaScript to dispatch keyboard/click events and they appear
+unhandled (`defaultPrevented=false`), the cause may be a corrupted reactive
+system rather than a missing handler. Always check `page.on("pageerror", ...)`
+FIRST. Svelte 5's `effect_update_depth_exceeded` is invisibly thrown — no
+console.log, no visible error in the UI — but once it fires, ALL event
+processing stops.
 
 ### Browser Testing Guide
 **PREFER automated E2E test scripts over the interactive browser tool.** The interactive browser tool (`browser_*` calls) should be used **only as a last resort** when an E2E script cannot reproduce the issue and you need to manually inspect the UI.
