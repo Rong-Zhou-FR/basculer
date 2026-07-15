@@ -96,8 +96,18 @@ assert_eq "" "$(declare -f gen_layout 2>/dev/null || true)" \
 assert_eq "" "$(echo "${LAYOUT_DIR:-}" 2>/dev/null || true)" \
     "LAYOUT_DIR constant removed"
 
+# restore_floorp should exist and use the right internals
+assert_contains "$(declare -f restore_floorp)" "pgrep -x -u" \
+    "restore_floorp checks for floorp process by PID"
+assert_contains "$(declare -f restore_floorp)" "session restore" \
+    "restore_floorp mentions session restore"
+assert_contains "$(declare -f restore_floorp)" 'grep -ic "ablaze floorp' \
+    "restore_floorp counts restored windows via wmctrl"
+
 # Constants
 assert_eq "15" "$SESSION_READY_TIMEOUT" "SESSION_READY_TIMEOUT is 15"
+assert_eq "floorp" "$FLOORP_BIN" "FLOORP_BIN defaults to floorp"
+assert_eq "4" "$FLOORP_WAIT" "FLOORP_WAIT is 4"
 
 rm -f "$test_wrapper"
 

@@ -60,6 +60,16 @@ DESK_WS3=2 # Workspace 3
 DESK_WS4=3 # Workspace 4
 DESK_WS5=4 # Workspace 5
 
+# ── Floorp browser ─────────────────────────────────────────────────────────
+# If floorp is not running when the workspace launches, start it so its
+# built-in session restore reopens previous windows on their desktops.
+# The script launches floorp before creating terminals so windows settle
+# before Alacritty windows take focus.
+FLOORP_BIN="${FLOORP_BIN:-floorp}"
+FLOORP_PROFILE=""   # empty = default profile
+# Seconds to wait after launching floorp for windows to appear.
+FLOORP_WAIT=4
+
 # ── Timing ─────────────────────────────────────────────────────────────────
 # Seconds to wait between terminal launches (allows windows to appear).
 LAUNCH_DELAY=1.5
@@ -179,6 +189,47 @@ launch_term() {
   zellij --session "$session_name" action close-tab &>/dev/null || true
 }
 
+# ── Floorp restore ─────────────────────────────────────────────────────────
+#
+# If Floorp is not running, launch it so its built-in session restore
+# reopens previous windows.  We do this *before* the terminal barrage so
+# browser windows have time to appear before Alacritty takes focus.
+restore_floorp() {
+  local floorp_pid
+
+  # ── Check if already running ──────────────────────────────────────────────
+  floorp_pid="$(pgrep -x -u "$(id -u)" "$(basename "${FLOORP_BIN}")" 2>/dev/null || true)"
+  if [[ -n "$floorp_pid" ]]; then
+    log_info "Floorp already running (PID $floorp_pid) — skipping restore"
+    return 0
+  fi
+
+  log_info "Floorp not running — launching for session restore …"
+
+  # ── Build launch command ──────────────────────────────────────────────────
+  local -a launch_args=()
+  if [[ -n "$FLOORP_PROFILE" ]]; then
+    launch_args+=(-P "$FLOORP_PROFILE")
+  fi
+
+  # Launch detached (setsid so it survives the shell session).
+  # Floorp's built-in session restore will reopen previous windows.
+  setsid "$FLOORP_BIN" "${launch_args[@]}" &>/dev/null &
+
+  log_info "Waiting ${FLOORP_WAIT}s for Floorp windows to appear …"
+  sleep "$FLOORP_WAIT"
+
+  # ── Count restored windows ────────────────────────────────────────────────
+  local win_count
+  win_count="$(wmctrl -l 2>/dev/null | grep -ic "ablaze floorp\|floorp\|mozilla firefox" || true)"
+  if [[ "$win_count" -gt 0 ]]; then
+    log_ok "Floorp restored — $win_count window(s) detected"
+  else
+    log_warn "Floorp launched but no windows detected via wmctrl"
+    log_warn "(Session restore may still be pending or wmctrl not available)"
+  fi
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────
 
 main() {
@@ -226,6 +277,10 @@ main() {
   need_dir "$DIR_BASCULER_OPENCODE"
   need_dir "$DIR_SCRATCH"
   need_dir "$DIR_AUTISH"
+
+  # ── Floorp session restore (before terminals take focus) ─────────────
+  echo ""
+  restore_floorp
 
   echo ""
   # Workspace configs: tab name|working directory (cwd)|init shell cmd|
