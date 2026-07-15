@@ -1235,11 +1235,45 @@ const WorktreePlugin: Plugin = async (ctx) => {
 						return `⚠️  Worktree removed, but failed to delete branch "${session.branch}": ${branchResult.error}`
 					}
 
+					// Delete remote branch (best-effort — may not exist on remote)
+					let remoteDeleted = false
+					const remoteResult = await git(["remote"], directory)
+					if (remoteResult.ok && remoteResult.value.trim()) {
+						const remotes = remoteResult.value.split("\n").filter((r) => r.trim())
+						for (const remote of remotes) {
+							const pushDeleteResult = await git(
+								["push", remote, "--delete", session.branch],
+								directory,
+							)
+							if (pushDeleteResult.ok) {
+								remoteDeleted = true
+							} else {
+								// log as debug if branch never existed on remote
+								if (
+									pushDeleteResult.error?.includes("remote ref does not exist") ||
+									pushDeleteResult.error?.includes("could not delete") ||
+									pushDeleteResult.error?.includes("not match")
+								) {
+									log.debug(
+										`Remote branch ${remote}/${session.branch} did not exist — skipping`,
+									)
+								} else {
+									log.warn(
+										`Failed to delete remote branch ${remote}/${session.branch}: ${pushDeleteResult.error}`,
+									)
+								}
+							}
+						}
+					}
+
 					// Remove session record
 					removeSession(database, session.branch)
 					clearPendingDelete(database)
 
-					return `✅ Worktree cleaned up successfully:\n  - Directory removed: ${session.path}\n  - Branch deleted: ${session.branch}`
+					const remoteMsg = remoteDeleted
+						? `\n  - Remote branch deleted: origin/${session.branch}`
+						: ""
+					return `✅ Worktree cleaned up successfully:\n  - Directory removed: ${session.path}\n  - Branch deleted: ${session.branch}${remoteMsg}`
 				},
 			}),
 		},
