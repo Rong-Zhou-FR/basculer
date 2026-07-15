@@ -85,7 +85,7 @@ assert_contains "$(declare -f launch_term)" "action new-tab" \
     "launch_term uses action new-tab"
 assert_contains "$(declare -f launch_term)" '--cwd "$workdir"' \
     "launch_term passes --cwd"
-assert_contains "$(declare -f launch_term)" "kill-sessions" \
+assert_contains "$(declare -f launch_term)" "delete-session --force" \
     "launch_term cleans stale sessions"
 assert_contains "$(declare -f launch_term)" "go-to-tab 0" \
     "launch_term closes default tab"

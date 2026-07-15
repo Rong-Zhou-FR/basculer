@@ -119,7 +119,7 @@ switch_desktop() {
 # Launch a development workspace terminal.
 #
 # Approach:
-#   1. Kill any stale session with the target name (clean slate)
+#   1. Delete any stale session with the target name (clean slate)
 #   2. Switch to target virtual desktop
 #   3. Launch bare Zellij in Alacritty — default config loads, full UX frame
 #   4. Wait for session daemon to appear (polling, with timeout)
@@ -138,8 +138,8 @@ launch_term() {
 
   log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
-  # Step 1: Kill stale session (clean slate)
-  zellij kill-sessions "$session_name" 2>/dev/null || true
+  # Step 1: Delete stale session (clean slate)
+  zellij delete-session --force "$session_name" 2>/dev/null || true
 
   # Step 2: Switch to target virtual desktop
   switch_desktop "$desk_index"
