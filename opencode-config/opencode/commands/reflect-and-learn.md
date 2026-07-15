@@ -14,13 +14,13 @@ Lessons for current project:
 
 |lesson number|experience|lesson|
 |-------------|----------|------|
-|(1,2,3...)   |(what happened in this session)|(what we leanrt for the project)|
+|(PJ1,PJ2,PJ3...)   |(what happened in this session)|(what we leanrt for the project)|
 
 Lessons for all future coding sessions:
 
 |lesson number|experience|lesson|
 |-------------|----------|------|
-|(1,2,3...)   |(what happened in this session)|(what we leanrt for for all future coding sessions)|
+|(G1,G2,G3...)   |(what happened in this session)|(what we leanrt for for all future coding sessions)|
 
 ASK user for validation of your reflection, and confirmation to 
 
