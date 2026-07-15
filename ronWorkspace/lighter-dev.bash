@@ -67,7 +67,7 @@ DESK_WS5=4 # Workspace 5
 # The script launches floorp before creating terminals so windows settle
 # before Alacritty windows take focus.
 FLOORP_BIN="${FLOORP_BIN:-floorp}"
-FLOORP_PROFILE=""   # empty = default profile
+FLOORP_PROFILE="" # empty = default profile
 # Seconds to wait after launching floorp for windows to appear.
 FLOORP_WAIT=4
 
@@ -204,12 +204,12 @@ launch_term() {
     if [[ -z "$cmd" ]]; then
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
-          --name "$tab_name" --cwd "$workdir" || true
+        --name "$tab_name" --cwd "$workdir" || true
     else
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
-          --name "$tab_name" --cwd "$workdir" \
-          -- bash -c "$cmd; exec bash" || true
+        --name "$tab_name" --cwd "$workdir" \
+        -- bash -c "$cmd; exec bash" || true
     fi
   done
 
