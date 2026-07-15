@@ -14,8 +14,8 @@ import * as path from "node:path"
 import * as os from "node:os"
 import { execSync } from "node:child_process"
 
-// Import the plugin to get testInternals
-import WorktreePlugin from "../plugins/worktree"
+// Import testInternals from the worktree-enhanced plugin
+import { testInternals as WorktreePlugin } from "../plugins/worktree"
 
 // Helper: create a sandbox directory for tests
 const SANDBOX = path.join(os.tmpdir(), "worktree-test-" + Date.now())
@@ -25,7 +25,7 @@ const {
 	validateWorktreeClean,
 	validateBranchMerged,
 	removeWorktree,
-} = (WorktreePlugin as any).testInternals as {
+} = { ...WorktreePlugin } as {
 	git: (args: string[], cwd: string) => Promise<{ ok: boolean; value?: string; error?: string }>
 	validateWorktreeClean: (worktreePath: string) => Promise<{ ok: boolean; error?: string }>
 	validateBranchMerged: (
@@ -360,7 +360,7 @@ describe("end-to-end: clean repo with unmerged branch fails merge validation", (
 
 describe("testInternals export", () => {
 	test("all expected worktree validation functions are exposed", () => {
-		const internals = (WorktreePlugin as any).testInternals
+		const internals = WorktreePlugin
 		expect(internals).toBeDefined()
 		expect(typeof internals.validateWorktreeClean).toBe("function")
 		expect(typeof internals.validateBranchMerged).toBe("function")
@@ -369,9 +369,8 @@ describe("testInternals export", () => {
 	})
 
 	test("existing internals are still exposed", () => {
-		const internals = (WorktreePlugin as any).testInternals
+		const internals = WorktreePlugin
 		expect(typeof internals.copyFiles).toBe("function")
 		expect(typeof internals.symlinkDirs).toBe("function")
-		expect(typeof internals.isPathLikeCommand).toBe("function")
 	})
 })

@@ -31,7 +31,7 @@ Identify all local and remote tracking branches (excluding `main`, `master`, `de
 | Last commit date | `git for-each-ref --format='%(committerdate:unix)' refs/heads/<branch>` |
 | Uncommitted changes? | `git status --porcelain` on the branch (switch briefly or check `git stash list` for branch-specific stashes) |
 | Unpushed commits? | `git log origin/main..<branch>` or `git log --oneline <branch> --not origin/main` |
-| Clean merge? | `git merge-base --is-ancestor <branch> main` + try `git merge --no-commit --no-ff` (dry run, then `abort`) |
+| Clean merge? | Tier 1: `git merge-base --is-ancestor <branch> main` (regular merges). Tier 2: `git diff --quiet main..<branch>` (squash/rebase — exits 0 if trees identical). If both fail, merge is not detectable programmatically — ask user to confirm, then tag-before-delete. |
 | Remote counterpart exists? | `git branch -r` contains `origin/<branch>` |
 
 Classify each branch into one of:
