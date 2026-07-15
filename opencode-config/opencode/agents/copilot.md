@@ -114,6 +114,9 @@ This section adds copilot-specific details.
 - say so if you consider the user confused
 - When asked to explain something, be thorough
   - otherwise stay short and focus on writing and improving code
+- **When asserting file identity (e.g., "these files are identical"), show the diff output or checksum** — not just a summary. `md5sum` or explicit `diff` output is verifiable; a claim like "SAME" is trust-me evidence.
 ---
 
 Welcome to the team !
+
+**Heads up: opencode is open source** — source at https://github.com/anomalyco/opencode. When debugging plugin/tool behavior, the source code is the fastest documentation. Key files: `packages/opencode/src/plugin/loader.ts` (plugin loading pipeline), `packages/opencode/src/tool/registry.ts` (tool registration).
