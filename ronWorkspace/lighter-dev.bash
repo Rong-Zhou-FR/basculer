@@ -109,6 +109,18 @@ need_dir() {
   fi
 }
 
+# Run a command, discard stdout, capture stderr, log warning on failure.
+# Usage: run_captured <label> <command> [args...]
+# Returns the exit code of the command.
+run_captured() {
+  local label="$1"
+  shift
+  local err_output
+  err_output=$("$@" 2>&1 >/dev/null) && return 0
+  log_warn "${label}: ${err_output:-"(no stderr output)"}"
+  return 1
+}
+
 switch_desktop() {
   local desk_index="$1"
   if $HAS_WMCTRL; then
@@ -139,13 +151,24 @@ launch_term() {
   log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
   # Step 1: Delete stale session (clean slate)
-  zellij delete-session --force "$session_name" 2>/dev/null || true
+  run_captured "delete-session ${session_name}" \
+    zellij delete-session --force "$session_name" || true
 
   # Step 2: Switch to target virtual desktop
   switch_desktop "$desk_index"
 
   # Step 3: Launch bare Zellij via Alacritty — full UX frame from default config
-  alacritty -e zellij --session "$session_name" &>/dev/null &
+  alacritty -e zellij --session "$session_name" >/dev/null 2>/tmp/lighter-dev-alacritty-${label}.log &
+  local alacritty_pid=$!
+
+  # Quick check: did alacritty start?
+  sleep 0.3
+  if ! kill -0 "$alacritty_pid" 2>/dev/null; then
+    log_warn "Alacritty exited immediately for «${label}»"
+    log_warn "  Check: $(cat /tmp/lighter-dev-alacritty-${label}.log 2>/dev/null || echo "no log")"
+    rm -f /tmp/lighter-dev-alacritty-${label}.log
+    return 0
+  fi
 
   # Step 4: Wait for the session daemon to be ready
   local timeout=$SESSION_READY_TIMEOUT
@@ -162,8 +185,11 @@ launch_term() {
 
   if ((timeout == 0)); then
     log_warn "Session «${session_name}» not ready within ${SESSION_READY_TIMEOUT}s"
+    log_warn "  Alacritty log: $(cat /tmp/lighter-dev-alacritty-${label}.log 2>/dev/null || echo "empty")"
+    rm -f /tmp/lighter-dev-alacritty-${label}.log
     return 0
   fi
+  rm -f /tmp/lighter-dev-alacritty-${label}.log
 
   sleep 0.5
 
@@ -175,18 +201,22 @@ launch_term() {
   for spec in "${tab_specs[@]}"; do
     IFS='|' read -r tab_name workdir cmd <<<"$spec"
     if [[ -z "$cmd" ]]; then
-      zellij --session "$session_name" action new-tab \
-        --name "$tab_name" --cwd "$workdir" &>/dev/null || true
+      run_captured "new-tab ${tab_name}" \
+        zellij --session "$session_name" action new-tab \
+          --name "$tab_name" --cwd "$workdir" || true
     else
-      zellij --session "$session_name" action new-tab \
-        --name "$tab_name" --cwd "$workdir" \
-        -- bash -c "$cmd; exec bash" &>/dev/null || true
+      run_captured "new-tab ${tab_name}" \
+        zellij --session "$session_name" action new-tab \
+          --name "$tab_name" --cwd "$workdir" \
+          -- bash -c "$cmd; exec bash" || true
     fi
   done
 
   # Step 6: Close the auto-created default tab (best-effort)
-  zellij --session "$session_name" action go-to-tab 0 &>/dev/null || true
-  zellij --session "$session_name" action close-tab &>/dev/null || true
+  run_captured "go-to-tab 0" \
+    zellij --session "$session_name" action go-to-tab 0 || true
+  run_captured "close-tab" \
+    zellij --session "$session_name" action close-tab || true
 }
 
 # ── Floorp restore ─────────────────────────────────────────────────────────
@@ -214,9 +244,19 @@ restore_floorp() {
 
   # Launch detached (setsid so it survives the shell session).
   # Floorp's built-in session restore will reopen previous windows.
-  setsid "$FLOORP_BIN" "${launch_args[@]}" &>/dev/null &
+  setsid "$FLOORP_BIN" "${launch_args[@]}" >/dev/null 2>/tmp/lighter-dev-floorp.log &
+  local floorp_pid_new=$!
 
-  log_info "Waiting ${FLOORP_WAIT}s for Floorp windows to appear …"
+  # Quick check: did floorp start?
+  sleep 0.5
+  if ! kill -0 "$floorp_pid_new" 2>/dev/null; then
+    log_err "Floorp exited immediately after launch!"
+    log_err "  Check: $(cat /tmp/lighter-dev-floorp.log 2>/dev/null || echo "no log")"
+    rm -f /tmp/lighter-dev-floorp.log
+    return 1
+  fi
+
+  log_info "Waiting ${FLOORP_WAIT}s for Floorp windows to appear (PID $floorp_pid_new) …"
   sleep "$FLOORP_WAIT"
 
   # ── Count restored windows ────────────────────────────────────────────────
@@ -225,9 +265,11 @@ restore_floorp() {
   if [[ "$win_count" -gt 0 ]]; then
     log_ok "Floorp restored — $win_count window(s) detected"
   else
-    log_warn "Floorp launched but no windows detected via wmctrl"
-    log_warn "(Session restore may still be pending or wmctrl not available)"
+    log_warn "Floorp launched (PID $floorp_pid_new) but no windows detected via wmctrl"
+    log_warn "  Log: $(cat /tmp/lighter-dev-floorp.log 2>/dev/null || echo "empty")"
+    log_warn "(Session restore may be pending, or wmctrl not available)"
   fi
+  rm -f /tmp/lighter-dev-floorp.log
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────
