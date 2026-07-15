@@ -214,37 +214,6 @@ Headed mode (`headed: true`) sessions are fragile:
 - Only use headed mode to visually debug a specific issue, and avoid interrupting it
   while actions are queued.
 
-### Plugins
-
-Custom plugins live in `.opencode/plugins/` and are registered in `.opencode/opencode.jsonc`. Source repos are symlinked from `~/kodo/opencode-tweaks/`:
-
-| Plugin | Tool(s) | Source | Symlink path |
-|--------|---------|--------|-------------|
-| **browser-safety** | `browser_health`, `browser_clean` | `~/kodo/opencode-tweaks/opencode-safe-playwright/src/index.ts` | `.opencode/plugins/browser-safety.ts` (registered in `opencode.jsonc`) |
-| **worktree-enhanced** | `worktreeCreate`, `worktreeDelete`, `worktreeList` | `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/index.ts` | `.opencode/plugins/worktree.ts` (not yet registered — must be added to `opencode.jsonc` to activate) |
-| **kdco-primitives** | Shared utilities (shell, mutex, terminal-detect, etc.) | Inline in `.opencode/plugins/kdco-primitives/` | Local files, no symlink |
-
-**How to edit a plugin:**
-1. Edit the source in `~/kodo/opencode-tweaks/<repo>/` (e.g. `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/git.ts`)
-2. Run tests — each repo has its own test suite:
-   ```bash
-   cd ~/kodo/opencode-tweaks/opencode-worktree-enhanced && bun test tests/
-   cd ~/kodo/opencode-tweaks/opencode-safe-playwright && bun test tests/
-   ```
-3. Changes take effect immediately on opencode server restart — no rebuild needed.
-
-**Symlink setup** (when adding a new plugin):
-```bash
-ln -sf <source-path> .opencode/plugins/<plugin-name>.ts
-```
-Then register it in `.opencode/opencode.jsonc`:
-```jsonc
-"plugin": [
-  "./plugins/browser-safety.ts",
-  "./plugins/<plugin-name>.ts"
-]
-```
-
 ### Port & Process Management
 - **Check before using a port** — Run `ss -tlnp` to verify a port is free before starting any server. Do not assume a port is available.
 - **Use a free port** — If the desired port is occupied by a foreign process, pick a different port. Most dev servers accept `--port <N>`. Adjust test-script URLs accordingly.

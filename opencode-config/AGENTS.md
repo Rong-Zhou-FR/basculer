@@ -81,7 +81,7 @@ Source repos are symlinked from `~/kodo/opencode-tweaks/`.
    cd ~/kodo/opencode-tweaks/opencode-worktree-enhanced && bun test tests/
    cd ~/kodo/opencode-tweaks/opencode-safe-playwright && bun test tests/
    ```
-3. **Changes take effect immediately** — the opencode server hot-reloads plugin source on restart. No rebuild step needed.
+3. **Changes take effect immediately** on opencode client restart — no rebuild step needed.
 
 ### How to add a new plugin
 
