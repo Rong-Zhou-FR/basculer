@@ -351,27 +351,6 @@ Config: .opencode/worktree.jsonc (\`newTerminal\`, \`preserveHistory\`, sync, ho
 			}),
 		},
 
-		event: async ({ event }: { event: { type: string } }): Promise<void> => {
-			if (!db || event.type !== "session.idle") return
-
-			// Handle any pending delete records (legacy compatibility)
-			const pending = getPendingDelete(db)
-			if (!pending) return
-
-			const config = await loadWorktreeConfig(directory, log)
-			if (config.hooks.preDelete.length) {
-				await runHooks(pending.path, config.hooks.preDelete, log)
-			}
-
-			const removeResult = await removeWorktree(directory, pending.path)
-			if (!removeResult.ok) {
-				log.warn(`Worktree remove failed: ${removeResult.error}`)
-			}
-
-			clearPendingDelete(db)
-			removeSession(db, pending.branch)
-			log.info(`Cleaned up worktree: ${pending.branch} (${pending.path})`)
-		},
 	}
 }
 
