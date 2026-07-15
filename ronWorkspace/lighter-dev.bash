@@ -14,7 +14,8 @@
 #   WS 3 (desk 2) — 1 terminal, 3 tabs:
 #     autish:           A repl sistemo | shell | A repl semantika
 #   WS 4 (desk 3) — 2 terminals:
-#     opencode-config:  opencode       | shell
+#     basculer:         basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)
+#                       | shell | opencode-agents (ls) | opencode-commands (ls)
 #     scratch:          nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md
 #   WS 5 (desk 4) — 2 terminals:
 #     lighterbird:      omaster | shell
@@ -43,7 +44,7 @@ set -euo pipefail
 DIR_LIGHTER_CONFIG="$HOME/kodo/lighter-config"
 DIR_LIGHTERBIRD="$HOME/kodo/autish/lighterbird"
 DIR_SEMANTIKA="$HOME/kodo/autish/semantika"
-DIR_BASCULER_OPENCODE="$HOME/kodo/basculer/opencode-config"
+DIR_BASCULER="$HOME/kodo/basculer"
 DIR_SCRATCH="$HOME/scratch"
 DIR_AUTISH="$HOME/kodo/autish"
 
@@ -292,7 +293,8 @@ main() {
     log_info "  autish:          A repl sistemo | shell | A repl semantika"
     echo ""
     log_info "Would launch workspace 4 (desk $((DESK_WS4 + 1))):"
-    log_info "  opencode-config: opencode | shell"
+    log_info "  basculer:        basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)"
+    log_info "                   | shell | opencode-agents (ls) | opencode-commands (ls)"
     log_info "  scratch:         nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md"
     echo ""
     log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
@@ -316,7 +318,7 @@ main() {
   need_dir "$DIR_LIGHTER_CONFIG"
   need_dir "$DIR_LIGHTERBIRD"
   need_dir "$DIR_SEMANTIKA"
-  need_dir "$DIR_BASCULER_OPENCODE"
+  need_dir "$DIR_BASCULER/opencode-config"
   need_dir "$DIR_SCRATCH"
   need_dir "$DIR_AUTISH"
 
@@ -346,8 +348,12 @@ main() {
   # ── Workspace 4: opencode-config + scratch ─────────────────────────
   log_info "=== Workspace 4 ==="
   launch_term "$DESK_WS4" "basculer" \
-    "basculer-opencode|${DIR_BASCULER_OPENCODE}|${CMD_OPENCODE}" \
-    "shell|${DIR_BASCULER_OPENCODE}|"
+    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE}" \
+    "shell|${DIR_BASCULER}|" \
+    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE}" \
+    "shell|${DIR_BASCULER}/opencode-config|" \
+    "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
+    "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
 
   launch_term "$DESK_WS4" "scratch" \
     "tmp-notes|${DIR_SCRATCH}|nvim ./tmp.md" \
