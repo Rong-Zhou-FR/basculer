@@ -87,7 +87,7 @@ async function isGitRepo($: { text: (strings: TemplateStringsArray, ...values: u
 	}
 }
 
-const WorktreeEnhancedPlugin: Plugin = async ({ client, directory, $ }) => {
+export const WorktreeEnhancedPlugin: Plugin = async ({ client, directory, $ }) => {
 	const inRepo = await isGitRepo($, directory)
 	const log = makeLogger(client, PLUGIN_MARKER)
 
