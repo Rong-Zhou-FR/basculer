@@ -7,7 +7,6 @@
  *   worktreeList   — List plugin-managed sessions and git worktrees
  */
 import { type Plugin, tool } from "@opencode-ai/plugin"
-import type { Event } from "@opencode-ai/sdk"
 
 import { loadWorktreeConfig } from "./config"
 import {
@@ -352,7 +351,7 @@ Config: .opencode/worktree.jsonc (\`newTerminal\`, \`preserveHistory\`, sync, ho
 			}),
 		},
 
-		event: async ({ event }: { event: Event }): Promise<void> => {
+		event: async ({ event }: { event: { type: string } }): Promise<void> => {
 			if (!db || event.type !== "session.idle") return
 
 			// Handle any pending delete records (legacy compatibility)
