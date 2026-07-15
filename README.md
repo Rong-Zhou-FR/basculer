@@ -8,8 +8,8 @@ Collection of productivity tweaks for Debian-based Linux.
 # 1. Clone
 git clone https://github.com/yourname/basculer.git ~/.basculer
 
-# 2. opencode — symlink
-ln -sf ~/.basculer/opencode ~/.config/opencode
+# 2. opencode — symlink config directory
+ln -sf ~/.basculer/opencode-config/opencode ~/.config/opencode
 
 # 3. bash — source in ~/.bashrc
 echo "source ~/.basculer/super-bash/bash-dev.bash" >> ~/.bashrc

@@ -224,6 +224,15 @@ Custom plugins live in `.opencode/plugins/` and are registered in `.opencode/ope
 | **worktree-enhanced** | `worktreeCreate`, `worktreeDelete`, `worktreeList` | `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/index.ts` | `.opencode/plugins/worktree.ts` (not yet registered — must be added to `opencode.jsonc` to activate) |
 | **kdco-primitives** | Shared utilities (shell, mutex, terminal-detect, etc.) | Inline in `.opencode/plugins/kdco-primitives/` | Local files, no symlink |
 
+**How to edit a plugin:**
+1. Edit the source in `~/kodo/opencode-tweaks/<repo>/` (e.g. `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/git.ts`)
+2. Run tests — each repo has its own test suite:
+   ```bash
+   cd ~/kodo/opencode-tweaks/opencode-worktree-enhanced && bun test tests/
+   cd ~/kodo/opencode-tweaks/opencode-safe-playwright && bun test tests/
+   ```
+3. Changes take effect immediately on opencode server restart — no rebuild needed.
+
 **Symlink setup** (when adding a new plugin):
 ```bash
 ln -sf <source-path> .opencode/plugins/<plugin-name>.ts
