@@ -292,6 +292,18 @@ When referring to subagents in natural language commands, use the `@` notation:
   `git log main --oneline --grep="$(git log -1 --format='%s' <branch>)"` to find the
   corresponding PR merge commit.
 
+### GitHub CLI (gh)
+- **Use file-based body for `gh issue create` and `gh pr create`** — inline `--body` strings with markdown, backticks, or special characters (`(`, `)`, `!`) are prone to shell escaping errors. Write the body to a temp file first:
+  ```bash
+  cat > /tmp/issue-body.md << 'ISSUE'
+  ## Problem
+
+  Description with `backticks`, (parentheses), and !exclamation marks.
+  ISSUE
+  gh issue create --title "..." --label bug --body-file /tmp/issue-body.md
+  ```
+  This avoids bash interpretation of special characters entirely.
+
 ### Interacting with External APIs
 - Many external APIs are rate-limited
 - Must minimise number of calls to avoid overloading the APIs
