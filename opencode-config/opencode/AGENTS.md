@@ -56,7 +56,7 @@ Use Serena tools first:
 - `serena_get_symbols_overview` – High-level symbol overview of a file
 - `serena_find_symbol` – Find classes, methods, functions by name pattern
 - `serena_find_referencing_symbols` – Find references to a symbol
-- `serena_search_for_pattern` – Search text/regex patterns in the project (prefer over `grep`)
+- `serena_search_for_pattern` – Search text/regex patterns in the project (fallback cascade: serena tool > `rg` > `grep`)
 - `serena_find_file` – Find files by name (prefer over `glob`)
 - `serena_read_file` – Read a file
 
@@ -424,7 +424,7 @@ Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!c
 6. **Bug fix** in the GUI (tab doesn't open, form missing fields): E2E test that reproduces the exact bug.
 
 #### Match test depth to tool size
-- For small CLI tools (<500 lines), `--help`/`--dry-run` smoke tests and structural grep checks catch more real bugs than mock-based unit tests. Shell scripts with `set -euo pipefail` already catch undefined variables and early exits — a simple live run or dry-run often suffices.
+- For small CLI tools (<500 lines), `--help`/`--dry-run` smoke tests and structural ripgrep (`rg`) checks catch more real bugs than mock-based unit tests. Shell scripts with `set -euo pipefail` already catch undefined variables and early exits — a simple live run or dry-run often suffices.
 - Reserve elaborate test frameworks for tools with complex data transformations, multi-layer architectures, or public APIs where subtle regressions matter. A personal launcher script does not need the same test apparatus as a web framework.
 
 ### Running Tests from Git Worktrees
@@ -558,7 +558,7 @@ For browser tool setup and troubleshooting (profile clearing, timeout handling, 
 #### Verify Test Selectors Match Current UI
 Before assuming test failures are your fault, snapshot the page and check that locators (CSS selectors, aria-labels, class names, command paths) haven't gone stale. Common rot: `<input>` → `<textarea>`, `.popup-panel` → tab-based result rendering, command paths that changed (e.g. `!account list` → `!email account list`). Systematic checklist:
 1. Snapshot the page → see if the expected element exists in the DOM at all
-2. If the locator is missing, grep the source for the actual class/aria-label
+2. If the locator is missing, ripgrep (`rg`) the source for the actual class/aria-label
 3. Update the test selector to match the current UI
 4. Re-run the test
 
