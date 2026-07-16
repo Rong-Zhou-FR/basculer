@@ -3,11 +3,11 @@ description: Identify stale, merged, and WIP branches, classify them safely, and
 agent: copilot
 ---
 
-# Branch Cleanup
+# TASK: Branch Cleanup
 
 **Never delete or merge branches without explicit human confirmation.** The AI classifies and recommends — the human decides.
 
-## Phase 0 — Working Tree Safety
+## Phase 0 — Working Tree Safety (DO NOW)
 
 Before touching branches, protect any in-progress work on the current working tree:
 
@@ -21,7 +21,7 @@ fi
 
 This ensures `git checkout` operations in later phases never fail due to local edits. The stash message includes a `opencode-cleanup/auto-stash:` prefix so it's distinguishable from human-made stashes. Save the ref (`stash@{0}`) if you need to restore later.
 
-## Phase 1 — Discover & Classify
+## Phase 1 — Discover & Classify (DO NOW)
 
 Identify all local and remote tracking branches (excluding `main`, `master`, `develop`, and `HEAD`). For each branch, determine:
 
@@ -65,7 +65,37 @@ Do **not** automatically pop or drop stashes. Always flag and let the human deci
 
 Flag the auto-stash from Phase 0 if present (it has the `opencode-cleanup/auto-stash:` prefix) — exclude it from per-branch correlation since it belongs to the working tree, not a feature branch.
 
-## Phase 2 — Present Findings
+### Evaluate Merge Candidates
+
+For branches classified as `MERGE_CLEAN`, `MERGE_CONFLICT`, or `WIP`, produce a detailed change-adoption table. WIP branches are included because "unpushed commits" ≠ "unfinished work" — the work may be complete but unsubmitted.
+
+For each candidate branch:
+1. **Get the diff** against main: `git diff main...<branch>` (three-dot — compares against merge base, shows only what the branch introduced).
+2. **Group changes into functional edit groups** — logical units of work, not mechanical file splits. Each group should represent one coherent change (e.g., "added user avatar upload", "refactored database connection pooling"). Use commit boundaries as a hint (commits are usually one logical unit), but merge adjacent commits if they belong to the same feature.
+3. **For each group**, compare the branch's version against what currently exists on `main`. Determine which is better and whether the change should be adopted.
+4. **Produce one markdown table per branch**:
+
+```
+### feat/refactor-db-layer (MERGE_CLEAN)
+
+| Functional change | Files touched | Branch vs main | Adoption recommendation |
+|---|---|---|---|
+| Connection pool rewrite | `src/db/pool.ts`, `src/db/client.ts` | Branch: typed, configurable, tested. Main: raw pg-pool singleton. Branch is strictly better. | adopt |
+| Query logging middleware | `src/db/pool.ts` | Branch adds Pino logging. Main has no logging. | adopt |
+| Rename `DbConfig` → `DatabaseOptions` | `src/db/types.ts` | Breaking rename with no benefit. Main name is clearer. | skip |
+```
+
+Adoption recommendation: one of **adopt**, **skip**, **inconclusive**.
+
+Scoring guidelines for "Branch vs main":
+- **Strictly better** → adopt
+- **Equivalent** → skip (no benefit to changing)
+- **Worse** → skip (introduces tech debt, unnecessary rename, fragile pattern, dead code)
+- **Mixed** → inconclusive (has value but needs rework — explain what)
+
+Include the tables in the Phase 2 report for each evaluated branch.
+
+## Phase 2 — Present Findings (DO NOW)
 
 Present a table with all branches, their classification, and a recommendation. 
 
@@ -110,7 +140,7 @@ Then ask user:
 > - `delete-all-safe` — execute all DELETE_SAFE recommendations
 > - Abbreviated branch names are OK if unambiguous (partial match)
 
-## Phase 3 — Execute Human Instructions
+## Phase 3 — Execute Human Instructions (ASK)
 
 ONLY act on what the HUMAN EXPLICITLY APPROVED. Never infer intent.
 
