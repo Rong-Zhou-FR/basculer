@@ -327,6 +327,14 @@ When referring to subagents in natural language commands, use the `@` notation:
   ```
   This avoids bash interpretation of special characters entirely.
 
+- **Heredoc pitfalls**: Even with a single-quoted heredoc delimiter (`<< 'EOF'`), constructing the body inline in a `bash` tool call is fragile — backticks inside markdown code fences (`rdf:type`, `sm:depicts`) and colons in `prefix:` notation can leak through and be interpreted by bash before reaching the heredoc, especially when using `python3 -c` inside the same bash invocation.
+
+  **Safer approach**: Use the `write` tool to create the body file directly (no shell layer at all), then run the `gh` command in a separate call:
+  ```
+  write(filePath="/tmp/issue-body.md", content="...")  → then → gh issue edit 134 --body-file /tmp/issue-body.md
+  ```
+  Or use Python with a dedicated script file (not `-c` with inline content). The key principle: **keep markdown content outside the shell layer entirely.**
+
 ### Interacting with External APIs
 - Many external APIs are rate-limited
 - Must minimise number of calls to avoid overloading the APIs
