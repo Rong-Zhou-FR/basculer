@@ -27,11 +27,11 @@ Identify all local and remote tracking branches (excluding `main`, `master`, `de
 
 | Attribute | How to check |
 |-----------|-------------|
-| Merged into `main`? | `git branch --merged main` (local), or check if all commits are reachable from `main` |
+| Merged into `main`? | `git branch --merged main` (local), or check if all commits are reachable from `main`. **Warning:** squash/rebase merges are invisible to ancestry checks — `--merged` will say "no" even if the branch was merged. |
 | Last commit date | `git for-each-ref --format='%(committerdate:unix)' refs/heads/<branch>` |
 | Uncommitted changes? | `git status --porcelain` on the branch (switch briefly or check `git stash list` for branch-specific stashes) |
 | Unpushed commits? | `git log origin/main..<branch>` or `git log --oneline <branch> --not origin/main` |
-| Clean merge? | Tier 1: `git merge-base --is-ancestor <branch> main` (regular merges). Tier 2: `git diff --quiet main..<branch>` (squash/rebase — exits 0 if trees identical). If both fail, merge is not detectable programmatically — ask user to confirm, then tag-before-delete. |
+| Clean merge? | Tier 1: `git merge-base --is-ancestor <branch> main` (regular merges). Tier 2: `git diff --quiet main..<branch>` (squash/rebase — exits 0 if trees identical). **Tier 3 (hint, not proof):** `git log main --oneline --grep="$(git log -1 --format='%s' <branch>)"` — if the branch tip commit message appears in `main`'s log, the branch was likely squash-merged. If all three fail, merge is not detectable programmatically — ask user to confirm, then tag-before-delete. |
 | Remote counterpart exists? | `git branch -r` contains `origin/<branch>` |
 
 Classify each branch into one of:
@@ -52,7 +52,7 @@ Classify each branch into one of:
 ```bash
 git stash list --format="%gd: %gs" | while IFS=': ' read -r ref msg; do
   # Extract branch from "WIP on feat/foo: abc1234 commit message"
-  branch=$(echo "$msg" | sed -n 's/^WIP on \([^:]*\):.*/\1/p')
+  branch=$(echo "$msg" | sed -n 's/^WIP on $[^:]*$:.*/\1/p')
   echo "$branch -> $ref"
 done
 ```
