@@ -102,6 +102,57 @@ ln -sf ~/kodo/opencode-tweaks/<new-plugin>/src/index.ts <project>/.opencode/plug
 - [@opencode-ai/plugin](https://www.npmjs.com/package/@opencode-ai/plugin) — Plugin SDK (installed in `.opencode/package.json`)
 - context-mode (optional) — for session indexing and persistent context
 
+## API Key Management
+
+### Rule
+**Never put raw API keys, tokens, or secrets in `opencode.jsonc`.** They are exposed in git history and visible to anyone with repo access.
+
+### Mechanism
+All secrets live in `opencode/.secrets/` — files are gitignored by the `*.secrets*` pattern in the repo root `.gitignore`.
+
+### Three approaches (pick by MCP server type)
+
+| Approach | When | Example |
+|----------|------|---------|
+| **Wrapper script** | Local MCP server that needs key as CLI arg or env var | `brave-search-wrapper.sh` reads `BRAVE_API_KEY_FILE`, passes as `--brave-api-key` |
+| **Proxy script** | Remote MCP server that auths via HTTP header | `context7-mcp-proxy.mjs` reads key from file, bridges stdio ↔ remote Context7 MCP over HTTP/SSE |
+| **Server-native `_FILE`** | MCP server has built-in `*_KEY_FILE` support | Pass file path in `environment` — no wrapper needed |
+
+For both wrapper and proxy approaches, the actual secret is loaded from a file at runtime. The config only ever references the file path.
+
+### Negative examples
+```jsonc
+// ❌ NEVER — key in plaintext in tracked config:
+"headers": { "CONTEXT7_API_KEY": "ctx7sk-..." }
+
+// ❌ NEVER — opencode doesn't support {file:...} in headers:
+"headers": { "Authorization": "Bearer {file:~/.config/opencode/.secrets/..." }
+```
+
+### Positive examples
+```jsonc
+// ✅ DO — wrapper + file path for local MCP:
+"brave-search": {
+  "type": "local",
+  "command": ["/home/rongzhou/.config/opencode/brave-search-wrapper.sh"],
+  "environment": {
+    "BRAVE_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/brave-api-key"
+  }
+}
+
+// ✅ DO — proxy + file path for remote MCP:
+"context7": {
+  "type": "local",
+  "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
+  "environment": {
+    "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
+  }
+}
+```
+
+### Reference
+See serena memory `opencode/api-key-patterns` for detailed implementation notes on each wrapper/proxy.
+
 ## Conventions
 
 ### Subagent Addressing
