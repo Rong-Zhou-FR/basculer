@@ -25,8 +25,10 @@
       "oauth": {}
     },
     "brave-search": {
+      // Wrapper reads key from file (never in config).
+      // See brave-search-wrapper.sh for implementation.
       "type": "local",
-      "command": ["brave-search-mcp-server"],
+      "command": ["/home/rongzhou/.config/opencode/brave-search-wrapper.sh"],
       "environment": {
         "BRAVE_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/brave-api-key"
       },
@@ -39,21 +41,26 @@
       "timeout": 10000
     },
     "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-f5804b2a-6ac7-4014-a70d-ff5cc8026427"
+      // Local wrapper proxy reads key from file (like brave-search).
+      // See context7-mcp-proxy.mjs for protocol details.
+      "type": "local",
+      "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
+      "environment": {
+        "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
       },
       "enabled": true,
-      "timeout": 10000
+      "timeout": 30000
     },
     "mcp_github": {
+      // Disabled: GitHub Copilot MCP would need its PAT from file.
+      // When re-enabling, use a local wrapper proxy (like context7 above)
+      // or set env var GITHUB_TOKEN from the secret file.
       "type": "remote",
       "url": "https://api.githubcopilot.com/mcp/",
       "enabled": false,
       "oauth": false,
       "headers": {
-        "Authorization": "Bearer {file:~/.config/opencode/.secrets/github-pat}"
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
       }
     }
   },
