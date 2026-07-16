@@ -2,6 +2,12 @@
 #
 # lighter-dev.bash — Launch the lighter-system development workspace
 #
+# IMPORTANT: This script closes and reopens ALL terminals across multiple
+# virtual desktops, forcefully killing existing Zellij sessions. It WILL
+# disrupt any work-in-progress (editors, running commands, etc.). An LLM
+# must NEVER execute a live run of this script without first obtaining
+# explicit, informed permission from the user. Use `--dry-run` for preview.
+#
 # Opens Alacritty+Zellij terminals across multiple Linux virtual desktops,
 # each pre-configured with project directories and startup commands.
 # Designed for the lighter-system development workflow.
