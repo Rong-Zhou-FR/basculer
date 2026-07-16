@@ -47,6 +47,7 @@ DIR_SEMANTIKA="$HOME/kodo/autish/semantika"
 DIR_BASCULER="$HOME/kodo/basculer"
 DIR_SCRATCH="$HOME/scratch"
 DIR_AUTISH="$HOME/kodo/autish"
+DIR_FEC="$HOME/kodo/france-en-chiffres"
 
 # ── Custom commands (must be on PATH or defined in bashrc) ─────────────────
 CMD_MASTER="opencode --agent gitmaster"
@@ -60,6 +61,7 @@ DESK_WS1=0 # Workspace 1
 DESK_WS3=2 # Workspace 3
 DESK_WS4=3 # Workspace 4
 DESK_WS5=4 # Workspace 5
+DESK_WS8=7 # Workspace 8
 
 # ── Floorp browser ─────────────────────────────────────────────────────────
 # If floorp is not running when the workspace launches, start it so its
@@ -300,6 +302,9 @@ main() {
     log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
     log_info "  lighterbird:     omaster | shell"
     log_info "  semantika:       omaster | shell"
+    echo ""
+    log_info "Would launch workspace 8 (desk $((DESK_WS8 + 1))):"
+    log_info "  fec-LLM:         opencode | shell | content"
     exit 0
     ;;
   esac
@@ -321,6 +326,7 @@ main() {
   need_dir "$DIR_BASCULER/opencode-config"
   need_dir "$DIR_SCRATCH"
   need_dir "$DIR_AUTISH"
+  need_dir "$DIR_FEC"
 
   # ── Floorp session restore (before terminals take focus) ─────────────
   echo ""
@@ -369,6 +375,13 @@ main() {
   launch_term "$DESK_WS5" "semantika-gitmaster" \
     "semantika-gitmaster|${DIR_SEMANTIKA}|${CMD_MASTER}" \
     "shell|${DIR_SEMANTIKA}|"
+
+  # ── Workspace 8: france-en-chiffres ──────────────────────────────
+  log_info "=== Workspace 8 ==="
+  launch_term "$DESK_WS8" "fec" \
+    "fec-LLM|${DIR_FEC}|${CMD_OPENCODE}" \
+    "shell|${DIR_FEC}|" \
+    "content|${DIR_FEC}/src/content|"
 
   echo ""
   log_ok "All terminals launched. Zellij sessions are running."
