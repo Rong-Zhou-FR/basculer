@@ -356,9 +356,9 @@ main() {
     "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
 
   launch_term "$DESK_WS4" "scratch" \
-    "tmp-notes|${DIR_SCRATCH}|nvim ./tmp.md" \
-    "lighterbird-notes|${DIR_SCRATCH}|nvim ./lighterbird/lighterbird-1.md" \
-    "semantika-notes|${DIR_SCRATCH}|nvim ./semantika/semantika-1.md"
+    "tmp-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/tmp.md" \
+    "lighterbird-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/lighterbird/lighterbird-1.md" \
+    "semantika-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/semantika/semantika-1.md"
 
   # ── Workspace 5: lighterbird + semantika master ────────────────────
   log_info "=== Workspace 5 ==="
