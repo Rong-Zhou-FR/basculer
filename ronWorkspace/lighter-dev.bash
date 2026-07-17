@@ -18,7 +18,7 @@
 #     lighterbird:      git pull       | shell
 #     semantika:        git pull       | shell
 #   WS 2 (desk 1) — 1 terminal, 3 tabs:
-#     ronzzmarkmap:     shell | email-write (ls) | diary-write (ls)
+#     ronzz-markmap:     shell | email-write (ls) | diary-write (ls)
 #   WS 3 (desk 2) — 1 terminal, 3 tabs:
 #     autish:           A repl sistemo | shell | A repl semantika
 #   WS 4 (desk 3) — 2 terminals:
@@ -56,7 +56,7 @@ DIR_BASCULER="$HOME/kodo/basculer"
 DIR_SCRATCH="$HOME/scratch"
 DIR_AUTISH="$HOME/kodo/autish"
 DIR_FEC="$HOME/kodo/france-en-chiffres"
-DIR_RONZZMARKMAP="$HOME/kodo/ronzzmarkmap"
+DIR_RONZZMARKMAP="$HOME/kodo/ronzz-markmap"
 
 # ── Custom commands (must be on PATH or defined in bashrc) ─────────────────
 CMD_MASTER="opencode --agent gitmaster"
@@ -302,7 +302,7 @@ main() {
     log_info "  semantika:       git pull       | shell"
     echo ""
     log_info "Would launch workspace 2 (desk $((DESK_WS2 + 1))):"
-    log_info "  ronzzmarkmap:    shell | email-write (ls) | diary-write (ls)"
+    log_info "  ronzz-markmap:    shell | email-write (ls) | diary-write (ls)"
     echo ""
     log_info "Would launch workspace 3 (desk $((DESK_WS3 + 1))):"
     log_info "  autish:          A repl sistemo | shell | A repl semantika"
@@ -354,13 +354,13 @@ main() {
     "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
     "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
     "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \
-    "lighterbird-fe|${DIR_LIGHTERBIRD}|" \
+    "lighterbird-fe|${DIR_LIGHTERBIRD}/web|" \
     "semantika-be|${DIR_SEMANTIKA}|git pull" \
-    "semantika-fe|${DIR_SEMANTIKA}|"
+    "semantika-fe|${DIR_SEMANTIKA}/web|"
 
-  # ── Workspace 2: ronzzmarkmap ──────────────────────────────────────
+  # ── Workspace 2: ronzz-markmap ──────────────────────────────────────
   log_info "=== Workspace 2 ==="
-  launch_term "$DESK_WS2" "ronzzmarkmap" \
+  launch_term "$DESK_WS2" "ronzz-markmap" \
     "shell|${DIR_RONZZMARKMAP}|" \
     "email-write|${DIR_RONZZMARKMAP}/email|ls" \
     "diary-write|${DIR_RONZZMARKMAP}/diary|ls"
