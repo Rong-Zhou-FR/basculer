@@ -3,7 +3,11 @@ description: implement new features
 agent: copilot
 ---
 
-I propose we implement $1
+## Implementation proposal
+
+$1
+
+## TODOs
 
 1. reflect: is the proposal in accordance with project goals & conventions in AGENTS.md ?
 2. if you approve the proposal, file a Github issue to document the feature request
