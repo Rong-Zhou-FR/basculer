@@ -316,24 +316,14 @@ When referring to subagents in natural language commands, use the `@` notation:
   can fail. In that case, use `worktreeDelete --force` after confirming with the user.
 
 ### GitHub CLI (gh)
-- **Use file-based body for `gh issue create` and `gh pr create`** — inline `--body` strings with markdown, backticks, or special characters (`(`, `)`, `!`) are prone to shell escaping errors. Write the body to a temp file first:
-  ```bash
-  cat > /tmp/issue-body.md << 'ISSUE'
-  ## Problem
 
-  Description with `backticks`, (parentheses), and !exclamation marks.
-  ISSUE
-  gh issue create --title "..." --label bug --body-file /tmp/issue-body.md
-  ```
-  This avoids bash interpretation of special characters entirely.
+See [`../AGENTS-gh-cli.md`](../AGENTS-gh-cli.md) for the full reference — issue CRUD, labels, GraphQL relationships (sub-issues, blocked-by), file-based body patterns, and common pitfalls.
 
-- **Heredoc pitfalls**: Even with a single-quoted heredoc delimiter (`<< 'EOF'`), constructing the body inline in a `bash` tool call is fragile — backticks inside markdown code fences (`rdf:type`, `sm:depicts`) and colons in `prefix:` notation can leak through and be interpreted by bash before reaching the heredoc, especially when using `python3 -c` inside the same bash invocation.
-
-  **Safer approach**: Use the `write` tool to create the body file directly (no shell layer at all), then run the `gh` command in a separate call:
-  ```
-  write(filePath="/tmp/issue-body.md", content="...")  → then → gh issue edit 134 --body-file /tmp/issue-body.md
-  ```
-  Or use Python with a dedicated script file (not `-c` with inline content). The key principle: **keep markdown content outside the shell layer entirely.**
+Key points from that file:
+- **Always use file-based body** for `gh issue create` / `gh pr create` — never inline markdown strings
+- **Use `write` tool** to create the body file (no shell layer) → then `gh issue create --body-file /tmp/body.md`
+- **Labels must exist** before `--add-label` — create them with `gh label create`
+- **Sub-issues and blocked-by** require `gh api graphql`, not `gh issue edit`
 
 ### Interacting with External APIs
 - Many external APIs are rate-limited

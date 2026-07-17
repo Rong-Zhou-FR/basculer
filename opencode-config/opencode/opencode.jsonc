@@ -111,6 +111,7 @@
       "/tmp": "allow",
       "/tmp/**": "allow",
       "~/.local/share/opencode/**": "allow",
+      "~/.opencode/**": "allow",
       "~/kodo/**": "allow",
       "~/.config/lighterbird/**": "allow",
       "~/.local/share/lighterbird/**": "allow",
