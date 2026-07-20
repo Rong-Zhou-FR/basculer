@@ -5,6 +5,8 @@ agent: copilot
 
 1. Commit all uncommitted changes on the feature branch
 2. Checkout `main`, merge the feature branch into `main` with a conventional commit message, then push
+  - be sure to reference relevant Github issues in commit messages (if any)
+  - update Github issues, if any
 3. Call `worktreeList` to confirm the current worktree context
 4. Call `worktreeDelete` with a short summary of work — this validates that:
    - The worktree has **no uncommitted changes**
