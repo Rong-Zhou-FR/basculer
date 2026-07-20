@@ -14,7 +14,7 @@
 #
 # Workspace layout:
 #   WS 1 (desk 0) — 1 terminal, 6 tabs:
-#     lighter-config:   nvim README.md | shell
+#     lighter-config:   nvim README.md | sh
 #     lighterbird:      git pull       | shell
 #     semantika:        git pull       | shell
 #   WS 2 (desk 1) — 1 terminal, 3 tabs:
@@ -354,9 +354,11 @@ main() {
     "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
     "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
     "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \
-    "lighterbird-fe|${DIR_LIGHTERBIRD}/web|" \
+    "fe|${DIR_LIGHTERBIRD}/web|" \
+    "sh|${DIR_LIGHTERBIRD}|" \
     "semantika-be|${DIR_SEMANTIKA}|git pull" \
-    "semantika-fe|${DIR_SEMANTIKA}/web|"
+    "fe|${DIR_SEMANTIKA}/web|" \
+    "sh|${DIR_SEMANTIKA}|"
 
   # ── Workspace 2: ronzz-markmap ──────────────────────────────────────
   log_info "=== Workspace 2 ==="
@@ -369,39 +371,42 @@ main() {
   log_info "=== Workspace 3 ==="
   launch_term "$DESK_WS3" "autish" \
     "A-sistemo-repl|${DIR_AUTISH}|${CMD_A_REPL_SISTEMO}" \
-    "autish-shell|${DIR_AUTISH}|" \
+    "autish-sh|${DIR_AUTISH}|" \
     "A-semantika-repl|${DIR_AUTISH}|${CMD_A_REPL_SEMANTIKA}"
 
   # ── Workspace 4: opencode-config + scratch ─────────────────────────
   log_info "=== Workspace 4 ==="
   launch_term "$DESK_WS4" "basculer" \
     "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE}" \
-    "shell|${DIR_BASCULER}|" \
+    "sh|${DIR_BASCULER}|" \
     "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE}" \
-    "shell|${DIR_BASCULER}/opencode-config|" \
+    "sh|${DIR_BASCULER}/opencode-config|" \
     "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
     "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
 
-  launch_term "$DESK_WS4" "scratch" \
-    "tmp-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/tmp.md" \
-    "lighterbird-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/lighterbird/lighterbird-1.md" \
-    "semantika-notes|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/semantika/semantika-1.md"
+  launch_term "$DESK_WS4" "notes" \
+    "tmp|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/tmp.md" \
+    "lighterbird|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/lighterbird/lighterbird-1.md" \
+    "semantika|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/semantika/semantika-1.md"
 
   # ── Workspace 5: lighterbird + semantika master ────────────────────
   log_info "=== Workspace 5 ==="
-  launch_term "$DESK_WS5" "lighterbird-gitmaster" \
-    "lighterbird-gitmaster|${DIR_LIGHTERBIRD}|${CMD_MASTER}" \
-    "shell|${DIR_LIGHTERBIRD}|"
+  launch_term "$DESK_WS5" "lbgm" \
+    "gm|${DIR_LIGHTERBIRD}|${CMD_MASTER}" \
+    "oc|${DIR_LIGHTERBIRD}|${CMD_OPENCODE}" \
+    "sh|${DIR_LIGHTERBIRD}|"
 
-  launch_term "$DESK_WS5" "semantika-gitmaster" \
-    "semantika-gitmaster|${DIR_SEMANTIKA}|${CMD_MASTER}" \
-    "shell|${DIR_SEMANTIKA}|"
+  launch_term "$DESK_WS5" "smgm" \
+    "gm|${DIR_SEMANTIKA}|${CMD_MASTER}" \
+    "oc|${DIR_SEMANTIKA}|${CMD_OPENCODE}" \
+    "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE}" \
+    "sh|${DIR_SEMANTIKA}|"
 
   # ── Workspace 8: france-en-chiffres ──────────────────────────────
   log_info "=== Workspace 8 ==="
   launch_term "$DESK_WS8" "fec" \
     "fec-LLM|${DIR_FEC}|${CMD_OPENCODE}" \
-    "shell|${DIR_FEC}|" \
+    "sh|${DIR_FEC}|" \
     "content|${DIR_FEC}/src/content|"
 
   echo ""
