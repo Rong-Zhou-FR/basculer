@@ -70,7 +70,7 @@ CMD_A_REPL_SEMANTIKA="A repl semantika"
 # ── Virtual desktop mapping (1-indexed workspace → 0-indexed wmctrl) ──────
 # Change the list below if your desktop manager uses a different numbering.
 for ws in 1 2 3 4 5 12; do
-  declare "DESK_WS${ws}=$((ws-1))"
+  declare "DESK_WS${ws}=$((ws - 1))"
 done
 
 # ── Floorp browser ─────────────────────────────────────────────────────────
@@ -138,6 +138,16 @@ switch_desktop() {
   local desk_index="$1"
   if $HAS_WMCTRL; then
     wmctrl -s "$desk_index" 2>/dev/null || true
+    # Poll until the switch takes effect (wmctrl -d shows '*' on the target).
+    # This handles window managers with asynchronous desktop switching.
+    local settle=0
+    while (( settle < 20 )); do
+      if wmctrl -d 2>/dev/null | awk '$2 == "*" {print $1; exit}' | grep -qxF "$desk_index" 2>/dev/null; then
+        break
+      fi
+      sleep 0.1
+      ((settle++))
+    done
   fi
 }
 
@@ -147,9 +157,10 @@ switch_desktop() {
 #   1. Delete any stale session with the target name (clean slate)
 #   2. Switch to target virtual desktop
 #   3. Launch bare Zellij in Alacritty — default config loads, full UX frame
-#   4. Wait for session daemon to appear (polling, with timeout)
+#   4. Wait for session registration via list-sessions+grep (with timeout) & settle
 #   5. For each tab spec, create a new tab via `zellij action new-tab --cwd`
 #   6. Close the auto-created default tab (best-effort)
+#   7. Verify tab count via query-tab-names; retry any missing tabs
 #
 # Usage: launch_term <desk-index> <label> <tab-spec>...
 # Each <tab-spec> is "tab_name|workdir|command"
@@ -160,6 +171,7 @@ launch_term() {
   shift 2
   local -a tab_specs=("$@")
   local session_name="lighter-dev-${label}"
+  local t_start
 
   log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
@@ -171,7 +183,8 @@ launch_term() {
   switch_desktop "$desk_index"
 
   # Step 3: Launch bare Zellij via Alacritty — full UX frame from default config
-  alacritty -e zellij --session "$session_name" >/dev/null 2>/tmp/lighter-dev-alacritty-${label}.log &
+  # Use setsid to detach from the shell session (survives script exit/SIGHUP).
+  setsid alacritty -e zellij --session "$session_name" >/dev/null 2>/tmp/lighter-dev-alacritty-${label}.log &
   local alacritty_pid=$!
 
   # Quick check: did alacritty start?
@@ -183,7 +196,10 @@ launch_term() {
     return 0
   fi
 
-  # Step 4: Wait for the session daemon to be ready
+  # Step 4: Wait for the session to be registered with the Zellij daemon.
+  # Poll list-sessions (which correctly returns non-zero when the session is
+  # absent — unlike query-tab-names which always returns 0).
+  t_start=${EPOCHSECONDS:-$(date +%s)}
   local timeout=$SESSION_READY_TIMEOUT
   while ((timeout > 0)); do
     if zellij list-sessions 2>/dev/null |
@@ -196,40 +212,83 @@ launch_term() {
     ((timeout--))
   done
 
+  local t_elapsed=$(( $(date +%s) - t_start ))
   if ((timeout == 0)); then
-    log_warn "Session «${session_name}» not ready within ${SESSION_READY_TIMEOUT}s"
+    log_warn "Session «${session_name}» not registered within ${SESSION_READY_TIMEOUT}s (${t_elapsed}s waited)"
     log_warn "  Alacritty log: $(cat /tmp/lighter-dev-alacritty-${label}.log 2>/dev/null || echo "empty")"
     rm -f /tmp/lighter-dev-alacritty-${label}.log
     return 0
   fi
   rm -f /tmp/lighter-dev-alacritty-${label}.log
+  [[ "$t_elapsed" -gt 2 ]] && log_info "Session «${session_name}» ready after ${t_elapsed}s"
 
-  sleep 0.5
+  sleep 1
 
   # Step 5: Create each tab via `zellij action new-tab`
   # Each new tab inherits the session's UX frame (tab-bar, status-bar).
   # Shell-only tabs: just set name and cwd.
   # Command tabs: wrap in `bash -c "cmd; exec bash"` to keep pane open.
-  local tab_name workdir cmd
+  local tab_name workdir cmd t_created=0 t_failed=0
   for spec in "${tab_specs[@]}"; do
     IFS='|' read -r tab_name workdir cmd <<<"$spec"
     if [[ -z "$cmd" ]]; then
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
-        --name "$tab_name" --cwd "$workdir" || true
+        --name "$tab_name" --cwd "$workdir" && \
+        t_created=$((t_created + 1)) || t_failed=$((t_failed + 1))
     else
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
         --name "$tab_name" --cwd "$workdir" \
-        -- bash -c "$cmd; exec bash" || true
+        -- bash -c "$cmd; exec bash" && \
+        t_created=$((t_created + 1)) || t_failed=$((t_failed + 1))
     fi
   done
+  if (( t_failed > 0 )); then
+    log_warn "Session «${session_name}»: ${t_created} tabs created, ${t_failed} failed"
+  fi
 
   # Step 6: Close the auto-created default tab (best-effort)
   run_captured "go-to-tab 0" \
     zellij --session "$session_name" action go-to-tab 0 || true
   run_captured "close-tab" \
     zellij --session "$session_name" action close-tab || true
+
+  # Step 7: Verify tab count — retry any missing tabs
+  # query-tab-names outputs one name per line; count non-empty lines.
+  local expected_count="${#tab_specs[@]}"
+  local actual_names actual_count missing_count=0
+  actual_names=$(zellij --session "$session_name" action query-tab-names 2>/dev/null) || true
+  actual_count=$(echo "$actual_names" | grep -c . || true)
+  if (( actual_count < expected_count )); then
+    log_warn "Session «${session_name}»: ${actual_count}/${expected_count} tabs. Retrying missing..."
+    for spec in "${tab_specs[@]}"; do
+      IFS='|' read -r tab_name workdir cmd <<<"$spec"
+      if ! echo "$actual_names" | grep -qxF "$tab_name" 2>/dev/null; then
+        if [[ -z "$cmd" ]]; then
+          run_captured "retry-tab ${tab_name}" \
+            zellij --session "$session_name" action new-tab \
+            --name "$tab_name" --cwd "$workdir" || true
+        else
+          run_captured "retry-tab ${tab_name}" \
+            zellij --session "$session_name" action new-tab \
+            --name "$tab_name" --cwd "$workdir" \
+            -- bash -c "$cmd; exec bash" || true
+        fi
+        missing_count=$((missing_count + 1))
+      fi
+    done
+    if (( missing_count > 0 )); then
+      log_info "Retried ${missing_count} missing tab(s) for «${session_name}»."
+      # Second-verification pass
+      local verify_count
+      verify_count=$(zellij --session "$session_name" action query-tab-names 2>/dev/null | grep -c . || true)
+      if (( verify_count < expected_count )); then
+        log_warn "After retry: ${verify_count}/${expected_count} tabs in «${session_name}»."
+        log_warn "Manually inspect with: zellij attach '${session_name}'"
+      fi
+    fi
+  fi
 }
 
 # ── Floorp restore ─────────────────────────────────────────────────────────
@@ -352,7 +411,7 @@ main() {
   # Workspace configs: tab name|working directory (cwd)|init shell cmd|
   # ── Workspace 1: lighter-config + lighterbird + semantika ──────────
   log_info "=== Workspace 1 ==="
-  launch_term "$DESK_WS1" "testing" \
+  launch_term "$DESK_WS1" "lighter-config" \
     "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
     "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
     "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \

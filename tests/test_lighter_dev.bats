@@ -89,6 +89,16 @@ assert_contains "$(declare -f launch_term)" "delete-session --force" \
     "launch_term cleans stale sessions"
 assert_contains "$(declare -f launch_term)" "go-to-tab 0" \
     "launch_term closes default tab"
+assert_contains "$(declare -f launch_term)" "setsid alacritty" \
+    "launch_term uses setsid for process isolation"
+assert_contains "$(declare -f launch_term)" "list-sessions" \
+    "launch_term polls list-sessions for session registration readiness"
+assert_contains "$(declare -f launch_term)" "query-tab-names" \
+    "launch_term uses query-tab-names for tab-count verification"
+
+# switch_desktop should poll until the switch takes effect
+assert_contains "$(declare -f switch_desktop)" "wmctrl -d" \
+    "switch_desktop polls wmctrl -d until desktop switch settles"
 
 # No stale layout machinery
 assert_eq "" "$(declare -f gen_layout 2>/dev/null || true)" \
