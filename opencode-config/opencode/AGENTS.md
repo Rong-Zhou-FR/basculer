@@ -322,13 +322,52 @@ When referring to subagents in natural language commands, use the `@` notation:
 
 ### GitHub CLI (gh)
 
-See [`../AGENTS-gh-cli.md`](../AGENTS-gh-cli.md) for the full reference — issue CRUD, labels, GraphQL relationships (sub-issues, blocked-by), file-based body patterns, and common pitfalls.
+#### Mandatory rules
 
-Key points from that file:
-- **Always use file-based body** for `gh issue create` / `gh pr create` — never inline markdown strings
-- **Use `write` tool** to create the body file (no shell layer) → then `gh issue create --body-file /tmp/body.md`
-- **Labels must exist** before `--add-label` — create them with `gh label create`
-- **Sub-issues and blocked-by** require `gh api graphql`, not `gh issue edit`
+- **Always use file-based body** for `gh issue create` / `gh pr create` — never inline markdown strings.
+  Use `write` tool to create the body file (no shell layer), then pass `--body-file /tmp/body.md`.
+- **Labels must exist** before `--add-label` — create them first via `gh label create`.
+- **Sub-issues and blocked-by** require `gh api graphql`, not `gh issue edit` (see below).
+
+#### GraphQL for relationships (easy to get wrong)
+
+Get node IDs before any GraphQL mutation:
+
+```bash
+gh api graphql -f query='
+query {
+  repository(owner: "OWNER", name: "REPO") {
+    issueN: issue(number: N) { id }
+  }
+}' --jq '.data.repository'
+```
+
+Sub-issues (parent/child):
+
+```bash
+gh api graphql -f query='
+mutation {
+  addSubIssue(input: {
+    issueId: "PARENT_NODE_ID",
+    subIssueId: "CHILD_NODE_ID"
+  }) { subIssue { id } }
+}'
+```
+
+Blocked-by relationships:
+
+```bash
+gh api graphql -f query='
+mutation {
+  addBlockedBy(input: {
+    issueId: "BLOCKED_ISSUE_NODE_ID",
+    blockingIssueId: "BLOCKING_ISSUE_NODE_ID"
+  }) { clientMutationId }
+}'
+```
+
+Full reference with all patterns (issue CRUD, file-based bodies, schema introspection, common pitfalls):
+https://raw.githubusercontent.com/Rong-Zhou-FR/basculer/main/opencode-config/opencode/AGENTS-gh-cli.md
 
 ### Interacting with External APIs
 - Many external APIs are rate-limited
