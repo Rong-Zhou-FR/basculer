@@ -13,10 +13,9 @@
 # Designed for the lighter-system development workflow.
 #
 # Workspace layout:
-#   WS 1 (desk 0) — 1 terminal, 6 tabs:
-#     lighter-config:   nvim README.md | sh
-#     lighterbird:      git pull       | shell
-#     semantika:        git pull       | shell
+#   WS 1 (desk 0) — 1 terminal, 8 tabs:
+#     lighter-config:   nvim README.md | shell | lighterbird (git pull)
+#                       | fe (web) | shell | semantika (git pull) | fe (web) | shell
 #   WS 2 (desk 1) — 1 terminal, 3 tabs:
 #     ronzz-markmap:     shell | email-write (ls) | diary-write (ls)
 #   WS 3 (desk 2) — 1 terminal, 3 tabs:
@@ -25,9 +24,12 @@
 #     basculer:         basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)
 #                       | shell | opencode-agents (ls) | opencode-commands (ls)
 #     scratch:          nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md
-#   WS 5 (desk 4) — 2 terminals:
-#     lighterbird:      omaster | shell
-#     semantika:        omaster | shell
+#   WS 5 (desk 4) — 3 terminals:
+#     lighterbird:      gitmaster | opencode | shell
+#     semantika:        gitmaster | opencode | opencode (builtin) | shell
+#     ronzzdoi:         gitmaster | opencode | shell
+#   WS 12 (desk 11) — 1 terminal, 3 tabs:
+#     france-en-chiffres: opencode | shell | content
 #
 # Prerequisites:
 #   - alacritty       terminal emulator
@@ -57,6 +59,7 @@ DIR_SCRATCH="$HOME/scratch"
 DIR_AUTISH="$HOME/kodo/autish"
 DIR_FEC="$HOME/kodo/france-en-chiffres"
 DIR_RONZZMARKMAP="$HOME/kodo/ronzz-markmap"
+DIR_RONZZDOI="$HOME/kodo/autish/ronzzdoi"
 
 # ── Custom commands (must be on PATH or defined in bashrc) ─────────────────
 CMD_MASTER="opencode --agent gitmaster"
@@ -65,13 +68,10 @@ CMD_A_REPL_SISTEMO="A repl sistemo"
 CMD_A_REPL_SEMANTIKA="A repl semantika"
 
 # ── Virtual desktop mapping (1-indexed workspace → 0-indexed wmctrl) ──────
-# Change these if your desktop manager uses a different numbering.
-DESK_WS1=0 # Workspace 1
-DESK_WS2=1 # Workspace 2
-DESK_WS3=2 # Workspace 3
-DESK_WS4=3 # Workspace 4
-DESK_WS5=4 # Workspace 5
-DESK_WS8=7 # Workspace 8
+# Change the list below if your desktop manager uses a different numbering.
+for ws in 1 2 3 4 5 12; do
+  declare "DESK_WS${ws}=$((ws-1))"
+done
 
 # ── Floorp browser ─────────────────────────────────────────────────────────
 # If floorp is not running when the workspace launches, start it so its
@@ -313,10 +313,11 @@ main() {
     log_info "  scratch:         nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md"
     echo ""
     log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
-    log_info "  lighterbird:     omaster | shell"
-    log_info "  semantika:       omaster | shell"
+    log_info "  lighterbird:     gitmaster | opencode | shell"
+    log_info "  semantika:       gitmaster | opencode | opencode (builtin) | shell"
+    log_info "  ronzzdoi:        gitmaster | opencode | shell"
     echo ""
-    log_info "Would launch workspace 8 (desk $((DESK_WS8 + 1))):"
+    log_info "Would launch workspace 12 (desk $((DESK_WS12 + 1))):"
     log_info "  fec-LLM:         opencode | shell | content"
     exit 0
     ;;
@@ -341,6 +342,7 @@ main() {
   need_dir "$DIR_AUTISH"
   need_dir "$DIR_FEC"
   need_dir "$DIR_RONZZMARKMAP"
+  need_dir "$DIR_RONZZDOI"
 
   # ── Floorp session restore (before terminals take focus) ─────────────
   echo ""
@@ -402,9 +404,14 @@ main() {
     "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE}" \
     "sh|${DIR_SEMANTIKA}|"
 
-  # ── Workspace 8: france-en-chiffres ──────────────────────────────
-  log_info "=== Workspace 8 ==="
-  launch_term "$DESK_WS8" "fec" \
+  launch_term "$DESK_WS5" "rzdoi" \
+    "gm|${DIR_RONZZDOI}|${CMD_MASTER}" \
+    "oc|${DIR_RONZZDOI}|${CMD_OPENCODE}" \
+    "sh|${DIR_RONZZDOI}|"
+
+  # ── Workspace 12: france-en-chiffres ──────────────────────────────
+  log_info "=== Workspace 12 ==="
+  launch_term "$DESK_WS12" "fec" \
     "fec-LLM|${DIR_FEC}|${CMD_OPENCODE}" \
     "sh|${DIR_FEC}|" \
     "content|${DIR_FEC}/src/content|"
