@@ -1,23 +1,29 @@
 ---
-description: scaffold project, create GitHub repo, push structure and AGENTS.md
+description: scaffold project, create GitHub repo, push structure and AGENTS.md (interactive - asks for confirmation at every step)
 agent: copilot
 ---
 
-Scaffold $1 as a new GitHub project
+Scaffold $1 as a new GitHub project — **ask for user confirmation at every decision point**. Do not proceed to the next step until the user explicitly approves the current one.
 
+## Principle
 
-## Process
+**Do not guess or act autonomously.** At each step, propose concrete options to the user via the `question` tool, let them pick or customise, then act only on explicit approval.
 
-### 1. Gather parameters
+---
 
-Ask the user for anything missing — don't guess unless the default is obvious.
+## Step-by-step workflow
 
-| Parameter | How to get it |
-|-----------|---------------|
-| **Org** | `gh api user --jq '.login'` (or ask) |
-| **License** | see table below; default **AGPL-3.0** |
-| **Visibility** | Ask (`--public` / `--private`); default **public** |
+### Step 1: Propose repo metadata → ask user
 
+Propose the following to the user using a single `question` call:
+
+| Field | How to determine the default |
+|-------|------------------------------|
+| **Repo name** | Derive from `$1` (the argument to the `init` command); if `$1` is unclear, ask what the project does first |
+| **Description** | One sentence summarising what the project does |
+| **Visibility** | `public` (recommended for OSS) or `private` |
+| **License** | See table below; default **AGPL-3.0** |
+| **Org** | Get current GitHub user: `gh api user --jq '.login'` (default), or let the user specify a different org |
 
 | License       | `--license` flag |
 |---------------|------------------|
@@ -30,8 +36,11 @@ Ask the user for anything missing — don't guess unless the default is obvious.
 | Unlicense     | `Unlicense`      |
 | No license    | omit the flag    |
 
-> If the repo already exists locally, skip steps 2–3 and just init git, add the remote, commit, and push.
-### 2. Create GitHub repo
+**Wait for user approval before proceeding.** If the user changes any field, update your proposal and ask again until agreement is reached.
+
+### Step 2: Create GitHub repo (only on explicit approval)
+
+Once the user has approved all metadata:
 
 ```bash
 gh repo create "$ORG/$REPO" \
@@ -40,20 +49,20 @@ gh repo create "$ORG/$REPO" \
   --description "$DESC"
 ```
 
-This creates the remote with a LICENSE file and minimal README.
+**Gotcha**: `--source` cannot be combined with `--license`. Creating the repo first and then cloning locally is the correct order.
 
-**Gotcha**: `--source` cannot be combined with `--license`. Creating the repo first, then cloning and adding files locally, is the correct order.
-
-### 3. Clone locally
+Clone locally:
 
 ```bash
 git clone "https://github.com/$ORG/$REPO.git"
 # workdir is now ./$REPO
 ```
 
-### 4. Scaffold project structure
+**Tell the user the repo was created and confirm you're ready to propose an architecture.** Wait for a go-ahead.
 
-Based on **project type** and **language**, create an appropriate layout:
+### Step 3: Propose repo architecture → ask user
+
+Propose an architecture to the user via `question`. Base the proposal on the project type and language (inferred from the repo name/description/your best judgment), but present it as a suggestion to approve or modify:
 
 | Project type | Typical structure |
 |---|---|
@@ -66,21 +75,33 @@ Based on **project type** and **language**, create an appropriate layout:
 | Shell/bash library | `lib/`, `functions/`, `tests/` |
 | Generic | `src/`, `tests/`, `docs/`, `scripts/` |
 
-Create the matching `.gitignore` — the [github/gitignore](https://github.com/github/gitignore) repo is a good reference, but a concise project-specific one is better than a kitchen-sink copy.
+**Present your concrete proposal** — don't just list options. Say something like:
 
+> *"I recommend a Python CLI tool layout: `src/<pkg>/`, `tests/`, `pyproject.toml` with `[project.scripts]`. The `.gitignore` would target Python. Does this work?"*
 
-### 5. Create AGENTS.md files
+Include an option for the user to describe their own structure if none of your suggestions fit.
 
-Fetch the templates and customise them:
+**Wait for explicit approval.** If the user modifies the proposal, update and re-present until agreed.
 
-- [Root `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-root-template.md)
-- [Per-submodule `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-module-template.md)
-  - one per submodule directory
+### Step 4: Scaffold, write AGENTS.md, commit & push (only on approval)
 
-### 6. Enhance README.md
+Once architecture is approved:
 
-The auto-generated README from `gh repo create` is minimal. Extend.
+1. **Scaffold** the directory structure and files as agreed
+   - Create the matching `.gitignore` — concise and project-specific
+2. **Create AGENTS.md files**
+   - Fetch templates:
+     - [Root `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-root-template.md)
+     - [Per-submodule `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-module-template.md)
+       - one per submodule directory
+   - Customise to match the project's actual structure
+3. **Enhance README.md** beyond the auto-generated one
+4. **Commit and push**
+   - Conventional commit message: `feat: initial scaffold with AGENTS.md`
+5. **Tell the user the project is live** with the clone URL
 
-### 7. Commit and push
+---
 
+## If the repo already exists locally
 
+If the target directory already exists and is a git repo, skip Steps 1–3 and just init git (if needed), add the remote, commit, and push. Ask the user before taking any action.
