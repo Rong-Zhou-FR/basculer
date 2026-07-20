@@ -90,6 +90,7 @@ Use when modifying code definitions:
 - `serena_execute_shell_command` – Execute shell commands
 - `bash` – Run shell commands (use workdir parameter; don't use `cd`)
 - **Use absolute paths for destructive commands** (`rm -rf`, `mv`, `chmod -R`). Relative paths like `rm -rf opencode/` are ambiguous — the working directory may not be what you think. Always write `rm -rf /absolute/path/to/target` to remove all doubt.
+- **Never use `rm -rf` on a worktree directory** — this orphans the active opencode session and can cause data loss. Always use the `worktreeDelete` tool for worktree cleanup.
 - When the bash tool's timeout expires, **the entire shell session (and all child processes) is killed**.
   - `command &`, `nohup command &`, and chaining (`cmd & ; sleep ; curl`) **do not** survive a timeout.
   - **Use `setsid` to detach long-running processes** from the shell session entirely:
@@ -314,6 +315,10 @@ When referring to subagents in natural language commands, use the `@` notation:
   squash/rebase merges where no conflicts occurred during squash. Neither method is 100%
   reliable — if the branch was squash-merged with conflicts or after diverge, both checks
   can fail. In that case, use `worktreeDelete --force` after confirming with the user.
+- **Never use `rm -rf` on a worktree directory.** This orphans the active opencode
+  session and can cause data loss or corruption. Always use `worktreeDelete` — it
+  validates safety first, preserves session continuity, and defers directory removal
+  until the next `worktreeCreate` call so no tools break mid-session.
 
 ### GitHub CLI (gh)
 
