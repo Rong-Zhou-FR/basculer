@@ -70,7 +70,7 @@ Source repos are symlinked from `~/kodo/opencode-tweaks/`.
 | Plugin | Tools | Source repo | Symlink path | Registered? |
 |--------|-------|------------|-------------|-------------|
 | **browser-safety** | `browser_health`, `browser_clean` | [opencode-safe-playwright](https://github.com/Ron-RONZZ-org/opencode-safe-playwright) → `~/kodo/opencode-tweaks/opencode-safe-playwright/src/index.ts` | `.opencode/plugins/browser-safety.ts` | Yes, in `opencode.jsonc` |
-| **worktree-enhanced** | `worktreeCreate`, `worktreeDelete`, `worktreeList` | [opencode-worktree-enhanced](https://github.com/Ron-RONZZ-org/opencode-worktree-enhanced) → `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/index.ts` | `.opencode/plugins/worktree.ts` | No — add to `opencode.jsonc` to activate |
+| **worktree-enhanced** | `worktreeCreate`, `worktreeDelete`, `worktreeList` | [opencode-worktree-enhanced](https://github.com/Ron-RONZZ-org/opencode-worktree-enhanced) → `~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/index.ts` | Global: `~/.config/opencode/plugins/opencode-worktree-enhanced/` → `src/` | Yes, globally in `~/.config/opencode/opencode.jsonc` |
 | **kdco-primitives** | Shared utilities (shell, mutex, terminal-detect, cmux, etc.) | Inline in `.opencode/plugins/kdco-primitives/` | Local files, no symlink | N/A (internal) |
 
 ### How to edit a plugin
