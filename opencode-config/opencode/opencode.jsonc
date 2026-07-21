@@ -16,13 +16,14 @@
         // "SPRINGER_API_KEY": "your_springer_api_key",
         // "WILEY_TDM_TOKEN": "your_wiley_tdm_token"
       },
-      "enabled": true
+      "enabled": false
     },
     "mcp_hugging_face": {
       "type": "remote",
       "enabled": false,
       "url": "https://huggingface.co/mcp?login",
       "oauth": {}
+      "enabled": false
     },
     "brave-search": {
       // Wrapper reads key from file (never in config).
