@@ -247,6 +247,11 @@ restore_backup() {
     echo ""
     info "=== Restoring backup #${index}: $(basename "$backup_file") ==="
 
+    if [[ ! -s "$backup_file" ]]; then
+        warn "Backup file is empty or missing — nothing to restore"
+        return 1
+    fi
+
     # shellcheck disable=SC1090
     source "$backup_file"
 
