@@ -146,7 +146,7 @@ switch_desktop() {
         break
       fi
       sleep 0.1
-      ((settle++))
+      ((settle++)) || true
     done
   fi
 }
@@ -230,7 +230,7 @@ launch_term() {
       break
     fi
     sleep 1
-    ((timeout--))
+    ((timeout--)) || true
   done
 
   local t_elapsed=$(( $(date +%s) - t_start ))
@@ -441,7 +441,7 @@ main() {
 
   # ── Floorp session restore (before terminals take focus) ─────────────
   echo ""
-  restore_floorp
+  restore_floorp || true
 
   echo ""
   # Workspace configs: tab name|working directory (cwd)|init shell cmd|
