@@ -155,12 +155,14 @@ switch_desktop() {
 #
 # Approach:
 #   1. Delete any stale session with the target name (clean slate)
-#   2. Switch to target virtual desktop
-#   3. Launch bare Zellij in Alacritty — default config loads, full UX frame
-#   4. Wait for session registration via list-sessions+grep (with timeout) & settle
-#   5. For each tab spec, create a new tab via `zellij action new-tab --cwd`
-#   6. Close the auto-created default tab (best-effort)
-#   7. Verify tab count via query-tab-names; retry any missing tabs
+#   2. Verify deletion fully processed (session gone from list-sessions)
+#   3. Switch to target virtual desktop
+#   4. Launch bare Zellij in Alacritty — default config loads, full UX frame
+#   5. Wait for session registration via list-sessions (ACTIVE only, not EXITED)
+#   6. Verify session responds to actions (query-tab-names output probe)
+#   7. For each tab spec, create a new tab via `zellij action new-tab --cwd`
+#   8. Close the auto-created default tab (best-effort)
+#   9. Verify tab count via query-tab-names; retry any missing tabs
 #
 # Usage: launch_term <desk-index> <label> <tab-spec>...
 # Each <tab-spec> is "tab_name|workdir|command"
@@ -179,10 +181,28 @@ launch_term() {
   run_captured "delete-session ${session_name}" \
     zellij delete-session --force "$session_name" || true
 
-  # Step 2: Switch to target virtual desktop
+  # Step 2: Wait for deletion to propagate — after delete-session --force,
+  # the daemon needs to fully remove the session before we create a new one
+  # with the same name. Poll list-sessions until the name disappears.
+  local delete_timeout=$SESSION_READY_TIMEOUT
+  while ((delete_timeout > 0)); do
+    if ! zellij list-sessions 2>/dev/null |
+      sed 's/\x1b\[[0-9;]*m//g' |
+      awk '{print $1}' |
+      grep -qxF "$session_name"; then
+      break  # stale session fully removed
+    fi
+    sleep 1
+    ((delete_timeout--))
+  done
+  if ((delete_timeout == 0)); then
+    log_warn "Stale session «${session_name}» not removed within ${SESSION_READY_TIMEOUT}s — proceeding"
+  fi
+
+  # Step 3: Switch to target virtual desktop
   switch_desktop "$desk_index"
 
-  # Step 3: Launch bare Zellij via Alacritty — full UX frame from default config
+  # Step 4: Launch bare Zellij via Alacritty — full UX frame from default config
   # Use setsid to detach from the shell session (survives script exit/SIGHUP).
   setsid alacritty -e zellij --session "$session_name" >/dev/null 2>/tmp/lighter-dev-alacritty-${label}.log &
   local alacritty_pid=$!
@@ -196,14 +216,15 @@ launch_term() {
     return 0
   fi
 
-  # Step 4: Wait for the session to be registered with the Zellij daemon.
-  # Poll list-sessions (which correctly returns non-zero when the session is
-  # absent — unlike query-tab-names which always returns 0).
+  # Step 5: Wait for the session to be registered with the Zellij daemon.
+  # Poll list-sessions — EXITED sessions cannot accept actions, so filter them
+  # out with grep -v '(EXITED'.
   t_start=${EPOCHSECONDS:-$(date +%s)}
   local timeout=$SESSION_READY_TIMEOUT
   while ((timeout > 0)); do
     if zellij list-sessions 2>/dev/null |
       sed 's/\x1b\[[0-9;]*m//g' |
+      grep -v '(EXITED' |
       awk '{print $1}' |
       grep -qxF "$session_name"; then
       break
@@ -222,9 +243,24 @@ launch_term() {
   rm -f /tmp/lighter-dev-alacritty-${label}.log
   [[ "$t_elapsed" -gt 2 ]] && log_info "Session «${session_name}» ready after ${t_elapsed}s"
 
-  sleep 1
+  # Step 6: Verify the session responds to actions before creating tabs.
+  # query-tab-names returns tab names (one per line) against an active session,
+  # but falls through to full list-sessions output (with [Created timestamps)
+  # when the session does not exist or is not ready. Probe up to 3 times.
+  local action_probe
+  for probe_try in 1 2 3; do
+    action_probe=$(zellij --session "$session_name" action query-tab-names 2>/dev/null) || true
+    if ! echo "$action_probe" | grep -qF '[Created'; then
+      break  # session responded with tab names
+    fi
+    sleep 1
+  done
+  if echo "$action_probe" | grep -qF '[Created'; then
+    log_warn "Session «${session_name}» registered but not responding to actions (tried 3 probes)"
+    return 0
+  fi
 
-  # Step 5: Create each tab via `zellij action new-tab`
+  # Step 7: Create each tab via `zellij action new-tab`
   # Each new tab inherits the session's UX frame (tab-bar, status-bar).
   # Shell-only tabs: just set name and cwd.
   # Command tabs: wrap in `bash -c "cmd; exec bash"` to keep pane open.
@@ -248,13 +284,13 @@ launch_term() {
     log_warn "Session «${session_name}»: ${t_created} tabs created, ${t_failed} failed"
   fi
 
-  # Step 6: Close the auto-created default tab (best-effort)
+  # Step 8: Close the auto-created default tab (best-effort)
   run_captured "go-to-tab 0" \
     zellij --session "$session_name" action go-to-tab 0 || true
   run_captured "close-tab" \
     zellij --session "$session_name" action close-tab || true
 
-  # Step 7: Verify tab count — retry any missing tabs
+  # Step 9: Verify tab count — retry any missing tabs
   # query-tab-names outputs one name per line; count non-empty lines.
   local expected_count="${#tab_specs[@]}"
   local actual_names actual_count missing_count=0

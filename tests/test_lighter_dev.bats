@@ -9,6 +9,9 @@
 #   - --help exits 0 and shows documentation
 #   - --dry-run exits 0 and shows preview
 #   - launch_term is defined with correct signature
+#   - launch_term uses delete-wait loop (poll list-sessions after delete-session)
+#   - launch_term filters EXITED sessions from readiness check
+#   - launch_term probes action-readiness via query-tab-names
 #   - No stale gen_layout / LAYOUT_DIR references remain
 #
 
@@ -95,6 +98,22 @@ assert_contains "$(declare -f launch_term)" "list-sessions" \
     "launch_term polls list-sessions for session registration readiness"
 assert_contains "$(declare -f launch_term)" "query-tab-names" \
     "launch_term uses query-tab-names for tab-count verification"
+
+# launch_term should have delete-wait loop (polls after delete-session)
+assert_contains "$(declare -f launch_term)" "delete_timeout" \
+    "launch_term polls list-sessions after delete-session to await cleanup"
+assert_contains "$(declare -f launch_term)" "Stale session" \
+    "launch_term warns when stale session not removed"
+
+# launch_term should filter EXITED sessions from readiness check
+assert_contains "$(declare -f launch_term)" "grep -v '(EXITED'" \
+    "launch_term filters EXITED sessions from readiness check"
+
+# launch_term should probe action-readiness before creating tabs
+assert_contains "$(declare -f launch_term)" "action_probe" \
+    "launch_term probes session action-readiness before creating tabs"
+assert_contains "$(declare -f launch_term)" "not responding to actions" \
+    "launch_term warns when session is not action-ready"
 
 # switch_desktop should poll until the switch takes effect
 assert_contains "$(declare -f switch_desktop)" "wmctrl -d" \
