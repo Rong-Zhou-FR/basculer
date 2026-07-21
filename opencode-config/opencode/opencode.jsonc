@@ -37,7 +37,7 @@
     "serena": {
       "type": "local",
       "enabled": true,
-      "command": ["serena", "start-mcp-server", "--project-from-cwd"],
+      "command": ["serena", "start-mcp-server", "--project-from-cwd", "--open-web-dashboard", "false"],
       "timeout": 10000
     },
     "context7": {
