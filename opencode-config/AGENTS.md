@@ -22,16 +22,23 @@ opencode/
 
 Project-local plugins and state live alongside the project's `.opencode/` directory (not symlinked):
 ```
-.basculer/opencode-config/.opencode/
-├── opencode.jsonc       # Plugin registration (browser-safety, worktree-enhanced, etc.)
-├── plugins/
-│   ├── browser-safety.ts  → (symlink to ~/kodo/opencode-tweaks/opencode-safe-playwright/src/index.ts)
-│   ├── worktree.ts        → (symlink to ~/kodo/opencode-tweaks/opencode-worktree-enhanced/src/index.ts)
-│   └── kdco-primitives/   # Shared utility modules (local files, no symlink)
-├── tests/               # Plugin test files (worktree.test.ts, browser-safety.test.ts)
-├── package.json         # Plugin npm dependencies (@opencode-ai/plugin, zod, etc.)
-├── worktree.jsonc       # Worktree plugin config (sync, hooks, terminal mode)
-└── worktree-state.sqlite # Worktree session state database
+.basculer/opencode-config/
+├── AGENTS.md            # This file — system prompt for agent sessions
+├── opencode/            # Config files — symlinked to ~/.config/opencode
+│   ├── opencode.jsonc   # Main config (MCP servers, permissions, providers, agents)
+│   ├── plugins/         # Global plugin sources (worktree, metasearch, mcp-daemon)
+│   ├── cleanup-mcp.sh   # Cron script to kill orphaned serena instances (>1h)
+│   └── .secrets/        # Local API keys (gitignored via *.secrets*)
+├── .opencode/           # Project-local plugins — auto-loaded by opencode
+│   ├── opencode.jsonc   # Plugin registration (browser-safety, etc.)
+│   ├── plugins/
+│   │   ├── browser-safety.ts  → (symlink)
+│   │   ├── worktree.ts        → (symlink)
+│   │   └── kdco-primitives/
+│   ├── tests/           # Plugin test files
+│   └── package.json
+└── tests/               # Config validation scripts
+    └── validate-opencode-config.sh
 ```
 
 ## Integration & Usage
@@ -114,44 +121,61 @@ All secrets live in `opencode/.secrets/` — files are gitignored by the `*.secr
 
 | Approach | When | Example |
 |----------|------|---------|
-| **Wrapper script** | Local MCP server that needs key as CLI arg or env var | `brave-search-wrapper.sh` reads `BRAVE_API_KEY_FILE`, passes as `--brave-api-key` |
-| **Proxy script** | Remote MCP server that auths via HTTP header | `context7-mcp-proxy.mjs` reads key from file, bridges stdio ↔ remote Context7 MCP over HTTP/SSE |
-| **Server-native `_FILE`** | MCP server has built-in `*_KEY_FILE` support | Pass file path in `environment` — no wrapper needed |
+| **Shared HTTP daemon** | Stateless MCP server with native HTTP transport | `mcp-daemon.ts` starts brave-search on port 8124. All sessions connect via `type: remote`. |
+| **Direct remote + `{file:path}`** | Remote MCP server that auths via HTTP header | Context7 connects directly to `https://mcp.context7.com/mcp` with `CONTEXT7_API_KEY: "{file:...}"` in headers. |
+| **Wrapper script** | Local MCP server that needs key as CLI arg | Retired — replaced by shared daemon or direct remote. |
 
-For both wrapper and proxy approaches, the actual secret is loaded from a file at runtime. The config only ever references the file path.
+For the `{file:path}` approach, the actual key is read from a gitignored file at runtime by opencode's config loader. The config only ever references the file path.
 
-### Negative examples
+### Examples
 ```jsonc
-// ❌ NEVER — key in plaintext in tracked config:
-"headers": { "CONTEXT7_API_KEY": "ctx7sk-..." }
-
-// ❌ NEVER — opencode doesn't support {file:...} in headers:
-"headers": { "Authorization": "Bearer {file:~/.config/opencode/.secrets/..." }
-```
-
-### Positive examples
-```jsonc
-// ✅ DO — wrapper + file path for local MCP:
+// ✅ Shared HTTP daemon (brave-search)
 "brave-search": {
-  "type": "local",
-  "command": ["/home/rongzhou/.config/opencode/brave-search-wrapper.sh"],
-  "environment": {
-    "BRAVE_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/brave-api-key"
-  }
+  "type": "remote",
+  "url": "http://127.0.0.1:8124/mcp",
+  "enabled": true
 }
 
-// ✅ DO — proxy + file path for remote MCP:
+// ✅ Direct remote + {file:path} (context7)
 "context7": {
-  "type": "local",
-  "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
-  "environment": {
-    "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
-  }
+  "type": "remote",
+  "url": "https://mcp.context7.com/mcp",
+  "headers": {
+    "CONTEXT7_API_KEY": "{file:/home/rongzhou/.config/opencode/.secrets/context7-api-key}"
+  },
+  "enabled": true,
+  "timeout": 30000
 }
+
+// ❌ NEVER — key in plaintext in tracked config:
+// "headers": { "CONTEXT7_API_KEY": "ctx7sk-..." }
 ```
 
-### Reference
-See serena memory `opencode/api-key-patterns` for detailed implementation notes on each wrapper/proxy.
+## Validation
+
+After editing `opencode.jsonc` or any plugin, run the validation script to catch errors early:
+
+```bash
+./tests/validate-opencode-config.sh
+```
+
+This checks:
+- Bash syntax of shell scripts
+- Opencode config loads successfully (schema validation + plugin compilation)
+
+## MCP Lifecycle Strategy
+
+Orphaned MCP server processes accumulate because `opencode serve` doesn't clean up subprocesses when attach sessions disconnect ([upstream issue #12913](https://github.com/anomalyco/opencode/issues/12913)).
+
+Three-tier mitigation:
+
+1. **Shared HTTP daemons** (brave-search) — Stateless servers run as a single HTTP instance via `mcp-daemon.ts` plugin. All sessions share one connection.
+2. **Direct remote** (context7) — Stateless cloud API connected via `type: remote` with `{file:path}` auth. No per-session overhead.
+3. **Per-session + cron cleanup** (serena) — Serena is stateful (LSP, memories per project). Stays per-session. Cron kills orphans >1h every 30min (`cleanup-mcp.sh`).
+
+Serena proxy rejected: per-project sharing doesn't save memory in worktree-isolated workflows where every session targets a different directory.
+
+See [issue #34](https://github.com/Rong-Zhou-FR/basculer/issues/34) for full discussion.
 
 ## Conventions
 
