@@ -95,7 +95,9 @@ done
 FLOORP_BIN="${FLOORP_BIN:-floorp}"
 FLOORP_PROFILE="" # empty = default profile
 # Seconds to wait after launching floorp for windows to appear.
-FLOORP_WAIT=4
+FLOORP_WAIT=10
+# Seconds to wait for opencode serve to bind its port after launch.
+OPCODE_DAEMON_TIMEOUT=30
 
 # ── Timing ─────────────────────────────────────────────────────────────────
 # Seconds to wait between terminal launches (allows windows to appear).
@@ -245,17 +247,10 @@ launch_term() {
 
   # Step 4: Launch bare Zellij via Alacritty — full UX frame from default config
   # Use setsid to detach from the shell session (survives script exit/SIGHUP).
+  # Note: $! captures the setsid-wrapper PID (which exits immediately), not the
+  # alacritty grandchild — so we don't check it. Startup failure is detected
+  # reliably in Steps 5–6 (list-sessions + query-tab-names polling).
   setsid alacritty -e zellij --session "$session_name" >/dev/null 2>/tmp/lighter-dev-alacritty-${label}.log &
-  local alacritty_pid=$!
-
-  # Quick check: did alacritty start?
-  sleep 0.3
-  if ! kill -0 "$alacritty_pid" 2>/dev/null; then
-    log_warn "Alacritty exited immediately for «${label}»"
-    log_warn "  Check: $(cat /tmp/lighter-dev-alacritty-${label}.log 2>/dev/null || echo "no log")"
-    rm -f /tmp/lighter-dev-alacritty-${label}.log
-    return 0
-  fi
 
   # Step 5: Wait for the session to be registered with the Zellij daemon.
   # Poll list-sessions — EXITED sessions cannot accept actions, so filter them
@@ -393,12 +388,16 @@ restore_floorp() {
 
   # Launch detached (setsid so it survives the shell session).
   # Floorp's built-in session restore will reopen previous windows.
+  # Note: $! captures the setsid-wrapper PID (which exits immediately), not the
+  # floorp grandchild — so we use pgrep to find the real floorp PID.
   setsid "$FLOORP_BIN" "${launch_args[@]}" >/dev/null 2>/tmp/lighter-dev-floorp.log &
-  local floorp_pid_new=$!
 
-  # Quick check: did floorp start?
+  # Quick check: did floorp start? Use pgrep (not $!) because setsid
+  # creates a grandchild process.
   sleep 0.5
-  if ! kill -0 "$floorp_pid_new" 2>/dev/null; then
+  local floorp_pid_new
+  floorp_pid_new="$(pgrep -x -u "$(id -u)" "$(basename "${FLOORP_BIN}")" 2>/dev/null || true)"
+  if [[ -z "$floorp_pid_new" ]]; then
     log_err "Floorp exited immediately after launch!"
     log_err "  Check: $(cat /tmp/lighter-dev-floorp.log 2>/dev/null || echo "no log")"
     rm -f /tmp/lighter-dev-floorp.log
@@ -440,7 +439,7 @@ launch_opencode_daemon() {
   if [[ -n "$port_pid" ]]; then
     # Port is held — verify the owning process is opencode
     if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
-      # Update PID file even if it was missing/stale
+      # Store the real PID from ss (ground truth)
       echo "$port_pid" > "$OPCODE_DAEMON_PID_FILE"
       log_info "OpenCode server daemon already running (PID $port_pid)"
       return 0
@@ -452,12 +451,12 @@ launch_opencode_daemon() {
   fi
 
   # ── PID-file fallback (for systems without ss(8)) ───────────────────
-  # If the PID file points to a process that exists but isn't on our
-  # port (recycled PID), don't trust it — clean up and restart.
+  # If the PID file points to a process that is dead (recycled PID),
+  # clean up the stale file so we don't try to wait for a dead process.
   if [[ -f "$OPCODE_DAEMON_PID_FILE" ]]; then
     local existing_pid
     existing_pid=$(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || true)
-    if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+    if [[ -n "$existing_pid" ]] && ! kill -0 "$existing_pid" 2>/dev/null; then
       rm -f "$OPCODE_DAEMON_PID_FILE"
     fi
   fi
@@ -465,21 +464,38 @@ launch_opencode_daemon() {
   # ── Start daemon ────────────────────────────────────────────────────
   log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
   setsid opencode serve --port "$OPCODE_SERVE_PORT" > "$OPCODE_DAEMON_LOG" 2>&1 &
-  local daemon_pid=$!
-  echo "$daemon_pid" > "$OPCODE_DAEMON_PID_FILE"
 
-  # Poll until the server health endpoint responds
-  local timeout=15
+  # Poll ss until the port is bound (ground truth).  Port binding is more
+  # reliable than HTTP health checks: the kernel binds the port very early
+  # in initialization, while the health endpoint may be delayed by plugin
+  # loading, provider connections, or other async initialization.
+  #
+  # Once the port appears, extract the real PID from ss output.
+  # (setsid creates a grandchild, so $! captures the short-lived wrapper,
+  # not the actual opencode serve process.)
+  local timeout=$OPCODE_DAEMON_TIMEOUT
   while ((timeout > 0)); do
-    if curl -sf "${OPCODE_SERVE_URL}/global/health" >/dev/null 2>&1; then
-      log_ok "OpenCode server daemon ready (PID $daemon_pid)"
-      return 0
+    port_pid=$(ss -tlnp 2>/dev/null \
+      | grep -F ":${OPCODE_SERVE_PORT}" \
+      | grep -o 'pid=[0-9][0-9]*' \
+      | grep -o '[0-9][0-9]*' \
+      || true)
+    if [[ -n "$port_pid" ]]; then
+      if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+        echo "$port_pid" > "$OPCODE_DAEMON_PID_FILE"
+        log_ok "OpenCode server daemon ready (PID $port_pid)"
+        return 0
+      fi
+      # Port bound by non-opencode — don't retry, it won't resolve itself
+      log_err "Port ${OPCODE_SERVE_PORT} claimed by non-opencode process (PID $port_pid)"
+      log_err "  Check: ${OPCODE_DAEMON_LOG}"
+      return 1
     fi
     sleep 1
     ((timeout--)) || true
   done
 
-  log_err "OpenCode server daemon not ready after 15s"
+  log_err "OpenCode server daemon did not bind port ${OPCODE_SERVE_PORT} within ${OPCODE_DAEMON_TIMEOUT}s"
   log_err "  Check: ${OPCODE_DAEMON_LOG}"
   return 1
 }
