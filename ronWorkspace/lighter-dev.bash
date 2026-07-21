@@ -400,17 +400,42 @@ restore_floorp() {
 # to this single instance, sharing the Bun/Node.js runtime, LLM connections,
 # and MCP infrastructure — instead of each tab spawning its own ~600MB server.
 launch_opencode_daemon() {
-  # Check if already running
+  # ── Port-based detection (primary) ──────────────────────────────────
+  # ss -tlnp shows listening TCP sockets with owning PID.  This is more
+  # reliable than PID-file-only checks because the port binding is the
+  # ground truth — if the daemon is alive, its port is bound.
+  local port_pid
+  port_pid=$(ss -tlnp 2>/dev/null \
+    | grep -F ":${OPCODE_SERVE_PORT}" \
+    | grep -o 'pid=[0-9][0-9]*' \
+    | grep -o '[0-9][0-9]*' \
+    || true)
+  if [[ -n "$port_pid" ]]; then
+    # Port is held — verify the owning process is opencode
+    if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+      # Update PID file even if it was missing/stale
+      echo "$port_pid" > "$OPCODE_DAEMON_PID_FILE"
+      log_info "OpenCode server daemon already running (PID $port_pid)"
+      return 0
+    fi
+    log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
+    log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
+    log_warn "  The opencode daemon cannot start until that process releases the port."
+    return 1
+  fi
+
+  # ── PID-file fallback (for systems without ss(8)) ───────────────────
+  # If the PID file points to a process that exists but isn't on our
+  # port (recycled PID), don't trust it — clean up and restart.
   if [[ -f "$OPCODE_DAEMON_PID_FILE" ]]; then
     local existing_pid
     existing_pid=$(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || true)
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-      log_info "OpenCode server daemon already running (PID $existing_pid)"
-      return 0
+      rm -f "$OPCODE_DAEMON_PID_FILE"
     fi
-    rm -f "$OPCODE_DAEMON_PID_FILE"
   fi
 
+  # ── Start daemon ────────────────────────────────────────────────────
   log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
   setsid opencode serve --port "$OPCODE_SERVE_PORT" > "$OPCODE_DAEMON_LOG" 2>&1 &
   local daemon_pid=$!
