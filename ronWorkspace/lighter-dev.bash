@@ -61,9 +61,23 @@ DIR_FEC="$HOME/kodo/france-en-chiffres"
 DIR_RONZZMARKMAP="$HOME/kodo/ronzz-markmap"
 DIR_RONZZDOI="$HOME/kodo/autish/ronzzdoi"
 
+# ── OpenCode shared server (serve+attach) ───────────────────────────────
+# Instead of starting N independent opencode servers (one per tab), start
+# ONE headless server and have all tabs attach to it. This saves ~3-4x
+# memory (one Bun/Node runtime instead of N).
+# https://opencode.ai/docs/cli#attach
+OPCODE_SERVE_PORT=4096
+OPCODE_SERVE_URL="http://127.0.0.1:${OPCODE_SERVE_PORT}"
+OPCODE_DAEMON_LOG="/tmp/opencode-daemon.log"
+OPCODE_DAEMON_PID_FILE="/tmp/opencode-daemon.pid"
+
 # ── Custom commands (must be on PATH or defined in bashrc) ─────────────────
-CMD_MASTER="opencode --agent gitmaster"
-CMD_OPENCODE="opencode"
+# NOTE: These are used as prefixes — each tab appends "--dir $TAB_DIR".
+# Attach mode connects to the shared server instead of spawning a new one.
+# gitmaster agent is available via 'run --attach --agent gitmaster --mini'
+# (the full 'opencode attach' TUI doesn't support --agent).
+CMD_OPENCODE="opencode attach ${OPCODE_SERVE_URL}"
+CMD_MASTER="opencode run --attach ${OPCODE_SERVE_URL} --agent gitmaster --mini"
 CMD_A_REPL_SISTEMO="A repl sistemo"
 CMD_A_REPL_SEMANTIKA="A repl semantika"
 
@@ -380,6 +394,44 @@ restore_floorp() {
   rm -f /tmp/lighter-dev-floorp.log
 }
 
+# ── OpenCode daemon ──────────────────────────────────────────────────────
+
+# Start the shared `opencode serve` daemon. All Zellij tabs will attach
+# to this single instance, sharing the Bun/Node.js runtime, LLM connections,
+# and MCP infrastructure — instead of each tab spawning its own ~600MB server.
+launch_opencode_daemon() {
+  # Check if already running
+  if [[ -f "$OPCODE_DAEMON_PID_FILE" ]]; then
+    local existing_pid
+    existing_pid=$(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || true)
+    if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+      log_info "OpenCode server daemon already running (PID $existing_pid)"
+      return 0
+    fi
+    rm -f "$OPCODE_DAEMON_PID_FILE"
+  fi
+
+  log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
+  setsid opencode serve --port "$OPCODE_SERVE_PORT" > "$OPCODE_DAEMON_LOG" 2>&1 &
+  local daemon_pid=$!
+  echo "$daemon_pid" > "$OPCODE_DAEMON_PID_FILE"
+
+  # Poll until the server health endpoint responds
+  local timeout=15
+  while ((timeout > 0)); do
+    if curl -sf "${OPCODE_SERVE_URL}/global/health" >/dev/null 2>&1; then
+      log_ok "OpenCode server daemon ready (PID $daemon_pid)"
+      return 0
+    fi
+    sleep 1
+    ((timeout--)) || true
+  done
+
+  log_err "OpenCode server daemon not ready after 15s"
+  log_err "  Check: ${OPCODE_DAEMON_LOG}"
+  return 1
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────
 
 main() {
@@ -403,17 +455,20 @@ main() {
     log_info "  autish:          A repl sistemo | shell | A repl semantika"
     echo ""
     log_info "Would launch workspace 4 (desk $((DESK_WS4 + 1))):"
-    log_info "  basculer:        basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)"
-    log_info "                   | shell | opencode-agents (ls) | opencode-commands (ls)"
+    log_info "  basculer:        basculer-LLM (attach)  | shell"
+    log_info "                   opencode-config-LLM (attach) | shell"
+    log_info "                   opencode-agents (ls) | opencode-commands (ls)"
     log_info "  scratch:         nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md"
     echo ""
     log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
-    log_info "  lighterbird:     gitmaster | opencode | shell"
-    log_info "  semantika:       gitmaster | opencode | opencode (builtin) | shell"
-    log_info "  ronzzdoi:        gitmaster | opencode | shell"
+    log_info "  lighterbird:     gitmaster (mini+attach) | opencode (attach) | shell"
+    log_info "  semantika:       gitmaster (mini+attach) | opencode (attach) | opencode (attach) | shell"
+    log_info "  ronzzdoi:        gitmaster (mini+attach) | opencode (attach) | shell"
     echo ""
     log_info "Would launch workspace 12 (desk $((DESK_WS12 + 1))):"
-    log_info "  fec-LLM:         opencode | shell | content"
+    log_info "  fec-LLM:         opencode (attach) | shell | content"
+    echo ""
+    log_info "(All opencode tabs share one server at ${OPCODE_SERVE_URL})"
     exit 0
     ;;
   esac
@@ -421,6 +476,8 @@ main() {
   # ── Dependency checks ──────────────────────────────────────────────
   need_cmd "alacritty"
   need_cmd "zellij"
+  need_cmd "opencode"
+  need_cmd "curl"
 
   if ! $HAS_WMCTRL; then
     log_warn "wmctrl not found — virtual desktop switching disabled."
@@ -438,6 +495,10 @@ main() {
   need_dir "$DIR_FEC"
   need_dir "$DIR_RONZZMARKMAP"
   need_dir "$DIR_RONZZDOI"
+
+  # ── OpenCode server daemon (before terminals, must be ready first) ──
+  echo ""
+  launch_opencode_daemon || exit 1
 
   # ── Floorp session restore (before terminals take focus) ─────────────
   echo ""
@@ -474,9 +535,9 @@ main() {
   # ── Workspace 4: opencode-config + scratch ─────────────────────────
   log_info "=== Workspace 4 ==="
   launch_term "$DESK_WS4" "basculer" \
-    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE}" \
+    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE} --dir ${DIR_BASCULER}" \
     "sh|${DIR_BASCULER}|" \
-    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE}" \
+    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE} --dir ${DIR_BASCULER}/opencode-config" \
     "sh|${DIR_BASCULER}/opencode-config|" \
     "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
     "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
@@ -489,31 +550,38 @@ main() {
   # ── Workspace 5: lighterbird + semantika master ────────────────────
   log_info "=== Workspace 5 ==="
   launch_term "$DESK_WS5" "lbgm" \
-    "gm|${DIR_LIGHTERBIRD}|${CMD_MASTER}" \
-    "oc|${DIR_LIGHTERBIRD}|${CMD_OPENCODE}" \
+    "gm|${DIR_LIGHTERBIRD}|${CMD_MASTER} --dir ${DIR_LIGHTERBIRD}" \
+    "oc|${DIR_LIGHTERBIRD}|${CMD_OPENCODE} --dir ${DIR_LIGHTERBIRD}" \
     "sh|${DIR_LIGHTERBIRD}|"
 
   launch_term "$DESK_WS5" "smgm" \
-    "gm|${DIR_SEMANTIKA}|${CMD_MASTER}" \
-    "oc|${DIR_SEMANTIKA}|${CMD_OPENCODE}" \
-    "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE}" \
+    "gm|${DIR_SEMANTIKA}|${CMD_MASTER} --dir ${DIR_SEMANTIKA}" \
+    "oc|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
+    "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
     "sh|${DIR_SEMANTIKA}|"
 
   launch_term "$DESK_WS5" "rzdoi" \
-    "gm|${DIR_RONZZDOI}|${CMD_MASTER}" \
-    "oc|${DIR_RONZZDOI}|${CMD_OPENCODE}" \
+    "gm|${DIR_RONZZDOI}|${CMD_MASTER} --dir ${DIR_RONZZDOI}" \
+    "oc|${DIR_RONZZDOI}|${CMD_OPENCODE} --dir ${DIR_RONZZDOI}" \
     "sh|${DIR_RONZZDOI}|"
 
   # ── Workspace 12: france-en-chiffres ──────────────────────────────
   log_info "=== Workspace 12 ==="
   launch_term "$DESK_WS12" "fec" \
-    "fec-LLM|${DIR_FEC}|${CMD_OPENCODE}" \
+    "fec-LLM|${DIR_FEC}|${CMD_OPENCODE} --dir ${DIR_FEC}" \
     "sh|${DIR_FEC}|" \
     "content|${DIR_FEC}/src/content|"
 
   echo ""
-  log_ok "All terminals launched. Zellij sessions are running."
-  log_info "Re-attach later:  zellij list-sessions  →  zellij attach <session-name>"
+  log_ok "All terminals launched. OpenCode server daemon still running (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo "unknown"))."
+  log_info "Re-attach later:          zellij list-sessions  →  zellij attach <session-name>"
+  echo ""
+  log_info "New opencode session (any project):"
+  log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
+  log_info "  opencode run --attach ${OPCODE_SERVE_URL} --agent gitmaster --mini --dir /path/to/project"
+  echo ""
+  log_info "Kill daemon:      kill \$(cat ${OPCODE_DAEMON_PID_FILE})"
+  log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
 }
 
 main "$@"

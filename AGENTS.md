@@ -83,6 +83,10 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
 
 **ronWorkspace** — Personal workspace launchers:
 - `lighter-dev.bash` — launch lighter-system dev workspace (Alacritty+Zellij across virtual desktops)
+  - Uses `opencode serve` daemon + `opencode attach` per-tab to share one Bun/Node.js
+    runtime across all opencode sessions (~3-4x memory reduction vs N independent servers)
+  - Gitmaster tabs use `opencode run --attach --agent gitmaster --mini` (interactive split-footer)
+  - Configurable via `OPCODE_SERVE_PORT` (default 4096)
 - `tests/test_lighter_dev.bats` — standalone bash test suite for lighter-dev.bash
 
 **.serena** — Serena AI project configuration:

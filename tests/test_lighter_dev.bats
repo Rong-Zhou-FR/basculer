@@ -73,6 +73,19 @@ assert_contains "$dry_out" "opencode" "shows all workspaces"
 
 echo ""
 
+# ── Test: --dry-run shows opencode serve+attach mode ─────────────────
+
+echo "=== dry-run: opencode serve+attach ==="
+dry_out=$(bash "$SCRIPT" --dry-run 2>&1)
+assert_contains "$dry_out" "share one server" \
+    "--dry-run mentions share one server"
+assert_contains "$dry_out" "opencode (attach)" \
+    "--dry-run shows attach mode for regular opencode tabs"
+assert_contains "$dry_out" "gitmaster (mini+attach)" \
+    "--dry-run shows mini+attach for gitmaster tabs"
+
+echo ""
+
 # ── Test: structural checks ──────────────────────────────────────────
 
 echo "=== structural ==="
@@ -132,6 +145,85 @@ assert_contains "$(declare -f restore_floorp)" "session restore" \
     "restore_floorp mentions session restore"
 assert_contains "$(declare -f restore_floorp)" 'grep -ic "ablaze floorp' \
     "restore_floorp counts restored windows via wmctrl"
+
+# ── Test: opencode serve+attach constants and functions ───────────────
+
+echo "=== opencode serve+attach ==="
+
+# Config constants
+assert_eq "4096" "$OPCODE_SERVE_PORT" "OPCODE_SERVE_PORT is 4096"
+assert_eq "http://127.0.0.1:4096" "$OPCODE_SERVE_URL" "OPCODE_SERVE_URL uses 127.0.0.1"
+assert_contains "${OPCODE_DAEMON_PID_FILE:-}" "/tmp/opencode-daemon.pid" \
+    "OPCODE_DAEMON_PID_FILE is /tmp/opencode-daemon.pid"
+assert_contains "${OPCODE_DAEMON_LOG:-}" "/tmp/opencode-daemon.log" \
+    "OPCODE_DAEMON_LOG is /tmp/opencode-daemon.log"
+
+# launch_opencode_daemon exists
+assert_contains "$(declare -f launch_opencode_daemon)" "opencode serve" \
+    "launch_opencode_daemon uses opencode serve"
+assert_contains "$(declare -f launch_opencode_daemon)" "--port" \
+    "launch_opencode_daemon passes --port"
+assert_contains "$(declare -f launch_opencode_daemon)" "/global/health" \
+    "launch_opencode_daemon polls /global/health"
+assert_contains "$(declare -f launch_opencode_daemon)" "setsid" \
+    "launch_opencode_daemon uses setsid for process isolation"
+assert_contains "$(declare -f launch_opencode_daemon)" "curl -sf" \
+    "launch_opencode_daemon uses curl for health check"
+assert_contains "$(declare -f launch_opencode_daemon)" "PID_FILE" \
+    "launch_opencode_daemon stores PID in PID_FILE"
+assert_contains "$(declare -f launch_opencode_daemon)" "already running" \
+    "launch_opencode_daemon checks if already running"
+
+# CMD_OPENCODE uses attach mode
+assert_contains "${CMD_OPENCODE}" "opencode attach" \
+    "CMD_OPENCODE uses opencode attach"
+assert_contains "${CMD_OPENCODE}" "${OPCODE_SERVE_URL}" \
+    "CMD_OPENCODE references OPCODE_SERVE_URL"
+
+# CMD_MASTER uses run --attach --mini
+assert_contains "${CMD_MASTER}" "opencode run" \
+    "CMD_MASTER uses opencode run"
+assert_contains "${CMD_MASTER}" "--attach" \
+    "CMD_MASTER uses --attach"
+assert_contains "${CMD_MASTER}" "--agent gitmaster" \
+    "CMD_MASTER uses --agent gitmaster"
+assert_contains "${CMD_MASTER}" "--mini" \
+    "CMD_MASTER uses --mini"
+
+# Tab specs in the source contain --dir for all opencode tabs
+tab_lines=$(grep -n 'opencode attach\|CMD_OPENCODE\|CMD_MASTER' "$SCRIPT" | grep -v '^\s*#' | grep -v 'CMD_OPENCODE="\|CMD_MASTER="' || true)
+while IFS= read -r line; do
+    # Skip lines that are comments or variable assignments
+    if [[ "$line" == *"--dir"* ]] || [[ "$line" == *"--dir"* ]]; then
+        continue
+    fi
+    # Actually let's just count that each CMD_OPENCODE/CMD_MASTER usage has --dir
+done <<< "$tab_lines"
+
+# Check tab specs for --dir usage
+open_code_usage=$(grep -c '\${CMD_OPENCODE}' "$SCRIPT" 2>/dev/null || true)
+open_code_with_dir=$(grep -c '\${CMD_OPENCODE} --dir' "$SCRIPT" 2>/dev/null || true)
+assert_eq "$open_code_usage" "$open_code_with_dir" \
+    "Every CMD_OPENCODE usage includes --dir ($open_code_usage instances)"
+
+master_usage=$(grep -c '\${CMD_MASTER}' "$SCRIPT" 2>/dev/null || true)
+master_with_dir=$(grep -c '\${CMD_MASTER} --dir' "$SCRIPT" 2>/dev/null || true)
+assert_eq "$master_usage" "$master_with_dir" \
+    "Every CMD_MASTER usage includes --dir ($master_usage instances)"
+
+# Main should call launch_opencode_daemon
+assert_contains "$(declare -f main)" "launch_opencode_daemon" \
+    "main calls launch_opencode_daemon"
+
+# Final output includes new-session template
+assert_contains "$(declare -f main)" "New opencode session" \
+    "main prints new session instructions"
+
+# Final output includes daemon kill command
+assert_contains "$(declare -f main)" "Kill daemon" \
+    "main prints daemon kill instructions"
+
+echo ""
 
 # Constants
 assert_eq "15" "$SESSION_READY_TIMEOUT" "SESSION_READY_TIMEOUT is 15"
