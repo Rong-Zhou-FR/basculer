@@ -117,15 +117,14 @@ ln -sf ~/kodo/opencode-tweaks/<new-plugin>/src/index.ts <project>/.opencode/plug
 ### Mechanism
 All secrets live in `opencode/.secrets/` — files are gitignored by the `*.secrets*` pattern in the repo root `.gitignore`.
 
-### Three approaches (pick by MCP server type)
+### Two approaches (pick by MCP server type)
 
 | Approach | When | Example |
 |----------|------|---------|
 | **Shared HTTP daemon** | Stateless MCP server with native HTTP transport | `mcp-daemon.ts` starts brave-search on port 8124. All sessions connect via `type: remote`. |
-| **Direct remote + `{file:path}`** | Remote MCP server that auths via HTTP header | Context7 connects directly to `https://mcp.context7.com/mcp` with `CONTEXT7_API_KEY: "{file:...}"` in headers. |
-| **Wrapper script** | Local MCP server that needs key as CLI arg | Retired — replaced by shared daemon or direct remote. |
+| **Local proxy script** | Remote MCP server that needs a file-based auth key | `context7-mcp-proxy.mjs` reads key from file, connects to remote MCP via Streamable HTTP, bridges stdio↔remote. Config uses `type: "local"` pointing to the proxy. |
 
-For the `{file:path}` approach, the actual key is read from a gitignored file at runtime by opencode's config loader. The config only ever references the file path.
+**Important**: OpenCode does NOT support `{file:path}` interpolation in config values. It supports `{env:VAR_NAME}` for environment variables. For file-based secrets, use a local wrapper/proxy script that reads the key from file at startup.
 
 ### Examples
 ```jsonc
@@ -136,12 +135,13 @@ For the `{file:path}` approach, the actual key is read from a gitignored file at
   "enabled": true
 }
 
-// ✅ Direct remote + {file:path} (context7)
+// ✅ Local proxy with file-based key (context7)
+// The proxy reads CONTEXT7_API_KEY_FILE env var — never in tracked config.
 "context7": {
-  "type": "remote",
-  "url": "https://mcp.context7.com/mcp",
-  "headers": {
-    "CONTEXT7_API_KEY": "{file:/home/rongzhou/.config/opencode/.secrets/context7-api-key}"
+  "type": "local",
+  "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
+  "environment": {
+    "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
   },
   "enabled": true,
   "timeout": 30000
@@ -170,7 +170,7 @@ Orphaned MCP server processes accumulate because `opencode serve` doesn't clean 
 Three-tier mitigation:
 
 1. **Shared HTTP daemons** (brave-search) — Stateless servers run as a single HTTP instance via `mcp-daemon.ts` plugin. All sessions share one connection.
-2. **Direct remote** (context7) — Stateless cloud API connected via `type: remote` with `{file:path}` auth. No per-session overhead.
+2. **Local proxy** (context7) — Local proxy script reads key from file, connects via Streamable HTTP. No per-session overhead.
 3. **Per-session + cron cleanup** (serena) — Serena is stateful (LSP, memories per project). Stays per-session. Cron kills orphans >1h every 30min (`cleanup-mcp.sh`).
 
 Serena proxy rejected: per-project sharing doesn't save memory in worktree-isolated workflows where every session targets a different directory.

@@ -17,35 +17,32 @@ Also: `{file:...}` syntax in headers doesn't work:
 
 ## Positive Patterns (file-based)
 
-### Pattern 1: Local MCP with wrapper script (brave-search)
-For local MCP servers that expect the key as a CLI arg or env var:
+### Pattern 1: Shared HTTP daemon with file-based key (brave-search)
+Stateless MCP servers with native HTTP transport can be started via the mcp-daemon plugin:
 
 1. Store key in `opencode/.secrets/<name>-api-key` (gitignored via `*.secrets*`)
-2. Create a shell wrapper that reads the file and passes the key to the MCP server
-3. Config references the wrapper + file path via `environment`
-
-`opencode/brave-search-wrapper.sh`:
-```bash
-BRAVE_API_KEY=$(cat "$BRAVE_API_KEY_FILE")
-exec brave-search-mcp-server --brave-api-key "$BRAVE_API_KEY"
-```
+2. mcp-daemon plugin reads the key from file and passes it to the server as an env var
+3. Config uses `type: "remote"` pointing to the daemon's HTTP endpoint
 
 `opencode.jsonc`:
 ```json
 "brave-search": {
-  "type": "local",
-  "command": ["~/.config/opencode/brave-search-wrapper.sh"],
-  "environment": {
-    "BRAVE_API_KEY_FILE": "~/.config/opencode/.secrets/brave-api-key"
-  }
+  "type": "remote",
+  "url": "http://127.0.0.1:8124/mcp",
+  "enabled": true
 }
 ```
 
-### Pattern 2: Remote MCP with proxy script (context7)
+See `opencode/plugins/mcp-daemon.ts` which:
+- Reads `BRAVE_API_KEY_FILE` env var from daemon config
+- Spawns `brave-search-mcp-server --transport http` on port 8124
+- All sessions share one daemon instance
+
+### Pattern 2: Local proxy for remote MCP with header auth (context7)
 For remote MCP servers that authenticate via headers:
 
 1. Store key in `opencode/.secrets/<name>-api-key`
-2. Write a Node.js proxy that reads the key from file, connects to the remote
+2. Write a Node.js/script proxy that reads the key from file, connects to the remote
    MCP (Streamable HTTP), and bridges stdio ↔ remote
 3. Config uses `type: "local"` pointing to the proxy script
 

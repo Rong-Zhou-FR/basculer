@@ -23,8 +23,7 @@
       "type": "remote",
       "enabled": false,
       "url": "https://huggingface.co/mcp?login",
-      "oauth": {},
-      "enabled": false
+      "oauth": {}
     },
     "brave-search": {
       // Shared HTTP daemon started by mcp-daemon plugin on port 8124.
@@ -37,16 +36,15 @@
       "type": "local",
       "enabled": true,
       "command": ["serena", "start-mcp-server", "--project-from-cwd", "--open-web-dashboard", "false"],
-      "timeout": 10000
+      "timeout": 60000
     },
     "context7": {
-      // Direct remote connection to Context7 cloud.
-      // API key read from file via {file:path} interpolation — never in config.
-      // No proxy, no per-session instances — all sessions share one connection.
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "headers": {
-        "CONTEXT7_API_KEY": "{file:/home/rongzhou/.config/opencode/.secrets/context7-api-key}"
+      // Local proxy reads key from file (never in config).
+      // See context7-mcp-proxy.mjs for implementation.
+      "type": "local",
+      "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
+      "environment": {
+        "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
       },
       "enabled": true,
       "timeout": 30000
