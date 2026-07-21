@@ -3,7 +3,8 @@
   "default_agent": "copilot",
   "plugin": ["opencode-notify",
     "./plugins/opencode-worktree-enhanced/index.ts",
-    "./plugins/opencode-metasearch2/index.ts"
+    "./plugins/opencode-metasearch2/index.ts",
+    "./plugins/mcp-daemon.ts"
   ],
   "mcp": {
     "paper-search": {
@@ -22,17 +23,14 @@
       "type": "remote",
       "enabled": false,
       "url": "https://huggingface.co/mcp?login",
-      "oauth": {}
+      "oauth": {},
       "enabled": false
     },
     "brave-search": {
-      // Wrapper reads key from file (never in config).
-      // See brave-search-wrapper.sh for implementation.
-      "type": "local",
-      "command": ["/home/rongzhou/.config/opencode/brave-search-wrapper.sh"],
-      "environment": {
-        "BRAVE_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/brave-api-key"
-      },
+      // Shared HTTP daemon started by mcp-daemon plugin on port 8124.
+      // No per-session instances — all sessions share one connection.
+      "type": "remote",
+      "url": "http://127.0.0.1:8124/mcp",
       "enabled": true
     },
     "serena": {
@@ -42,12 +40,13 @@
       "timeout": 10000
     },
     "context7": {
-      // Local wrapper proxy reads key from file (like brave-search).
-      // See context7-mcp-proxy.mjs for protocol details.
-      "type": "local",
-      "command": ["node", "/home/rongzhou/.config/opencode/context7-mcp-proxy.mjs"],
-      "environment": {
-        "CONTEXT7_API_KEY_FILE": "/home/rongzhou/.config/opencode/.secrets/context7-api-key"
+      // Direct remote connection to Context7 cloud.
+      // API key read from file via {file:path} interpolation — never in config.
+      // No proxy, no per-session instances — all sessions share one connection.
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{file:/home/rongzhou/.config/opencode/.secrets/context7-api-key}"
       },
       "enabled": true,
       "timeout": 30000
