@@ -74,10 +74,10 @@ OPCODE_DAEMON_PID_FILE="/tmp/opencode-daemon.pid"
 # ── Custom commands (must be on PATH or defined in bashrc) ─────────────────
 # NOTE: These are used as prefixes — each tab appends "--dir $TAB_DIR".
 # Attach mode connects to the shared server instead of spawning a new one.
-# gitmaster agent is available via 'run --attach --agent gitmaster --mini'
-# (the full 'opencode attach' TUI doesn't support --agent).
+# --mini is only supported by `opencode attach`, not `opencode run`.
+# The gitmaster agent can be activated inside any session via '/agent gitmaster'.
 CMD_OPENCODE="opencode attach ${OPCODE_SERVE_URL}"
-CMD_MASTER="opencode run --attach ${OPCODE_SERVE_URL} --agent gitmaster --mini"
+CMD_MASTER="opencode attach ${OPCODE_SERVE_URL} --mini"
 CMD_A_REPL_SISTEMO="A repl sistemo"
 CMD_A_REPL_SEMANTIKA="A repl semantika"
 

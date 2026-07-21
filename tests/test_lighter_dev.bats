@@ -180,15 +180,13 @@ assert_contains "${CMD_OPENCODE}" "opencode attach" \
 assert_contains "${CMD_OPENCODE}" "${OPCODE_SERVE_URL}" \
     "CMD_OPENCODE references OPCODE_SERVE_URL"
 
-# CMD_MASTER uses run --attach --mini
-assert_contains "${CMD_MASTER}" "opencode run" \
-    "CMD_MASTER uses opencode run"
-assert_contains "${CMD_MASTER}" "--attach" \
-    "CMD_MASTER uses --attach"
-assert_contains "${CMD_MASTER}" "--agent gitmaster" \
-    "CMD_MASTER uses --agent gitmaster"
+# CMD_MASTER uses attach --mini (run doesn't support --mini)
+assert_contains "${CMD_MASTER}" "opencode attach" \
+    "CMD_MASTER uses opencode attach"
 assert_contains "${CMD_MASTER}" "--mini" \
     "CMD_MASTER uses --mini"
+assert_contains "${CMD_MASTER}" "${OPCODE_SERVE_URL}" \
+    "CMD_MASTER references OPCODE_SERVE_URL"
 
 # Tab specs in the source contain --dir for all opencode tabs
 tab_lines=$(grep -n 'opencode attach\|CMD_OPENCODE\|CMD_MASTER' "$SCRIPT" | grep -v '^\s*#' | grep -v 'CMD_OPENCODE="\|CMD_MASTER="' || true)
