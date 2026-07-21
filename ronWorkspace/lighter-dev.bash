@@ -77,7 +77,7 @@ OPCODE_DAEMON_PID_FILE="/tmp/opencode-daemon.pid"
 # --mini is only supported by `opencode attach`, not `opencode run`.
 # The gitmaster agent can be activated inside any session via '/agent gitmaster'.
 CMD_OPENCODE="opencode attach ${OPCODE_SERVE_URL}"
-CMD_MASTER="opencode attach ${OPCODE_SERVE_URL} --mini"
+CMD_MASTER="env OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini"
 CMD_A_REPL_SISTEMO="A repl sistemo"
 CMD_A_REPL_SEMANTIKA="A repl semantika"
 
@@ -630,7 +630,7 @@ main() {
   echo ""
   log_info "New opencode session (any project):"
   log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
-  log_info "  opencode run --attach ${OPCODE_SERVE_URL} --agent gitmaster --mini --dir /path/to/project"
+  log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
   echo ""
   log_info "Kill daemon:      kill \$(cat ${OPCODE_DAEMON_PID_FILE})"
   log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
