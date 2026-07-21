@@ -113,6 +113,9 @@ command -v wmctrl &>/dev/null && HAS_WMCTRL=true
 # Seconds to wait for a Zellij session daemon to start after launch.
 SESSION_READY_TIMEOUT=15
 
+# Seconds to wait for zellij delete-session --force to propagate.
+DELETE_TIMEOUT=3
+
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 log_info() { printf '\e[34m[INFO]\e[0m  %s\n' "$*"; }
@@ -191,6 +194,20 @@ launch_term() {
 
   log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
+  # Step 0: Preemptively clean all lighter-dev-* EXITED sessions from the
+  # Zellij daemon.  These accumulate over runs (the daemon preserves EXITED
+  # metadata for "resurrection") and can cause stale-name collisions or slow
+  # down list-sessions.  Best-effort, ignore failures — don't touch ACTIVE
+  # sessions (they're in use).
+  zellij list-sessions 2>/dev/null |
+    sed 's/\x1b\[[0-9;]*m//g' |
+    grep '(EXITED' |
+    awk '{print $1}' |
+    grep '^lighter-dev-' |
+    while IFS= read -r stale_sid; do
+      zellij delete-session --force "$stale_sid" 2>/dev/null || true
+    done || true
+
   # Step 1: Delete stale session (clean slate)
   run_captured "delete-session ${session_name}" \
     zellij delete-session --force "$session_name" || true
@@ -198,10 +215,13 @@ launch_term() {
   # Step 2: Wait for deletion to propagate — after delete-session --force,
   # the daemon needs to fully remove the session before we create a new one
   # with the same name. Poll list-sessions until the name disappears.
-  local delete_timeout=$SESSION_READY_TIMEOUT
+  # Only wait for ACTIVE sessions — EXITED metadata that wasn't fully cleaned
+  # is harmless: Step 4's `zellij --session` will resurrect it.
+  local delete_timeout=$DELETE_TIMEOUT
   while ((delete_timeout > 0)); do
     if ! zellij list-sessions 2>/dev/null |
       sed 's/\x1b\[[0-9;]*m//g' |
+      grep -v '(EXITED' |
       awk '{print $1}' |
       grep -qxF "$session_name"; then
       break  # stale session fully removed
@@ -210,7 +230,14 @@ launch_term() {
     ((delete_timeout--))
   done
   if ((delete_timeout == 0)); then
-    log_warn "Stale session «${session_name}» not removed within ${SESSION_READY_TIMEOUT}s — proceeding"
+    local diag_state
+    diag_state=$(zellij list-sessions 2>/dev/null |
+      sed 's/\x1b\[[0-9;]*m//g' |
+      awk -v name="$session_name" '$1 == name {sub(/^[^ ]* /, ""); print; exit}' || true)
+    log_warn "Stale session «${session_name}» not removed within ${DELETE_TIMEOUT}s — proceeding"
+    if [[ -n "$diag_state" ]]; then
+      log_warn "  list-sessions shows: ${diag_state}"
+    fi
   fi
 
   # Step 3: Switch to target virtual desktop
