@@ -50,6 +50,18 @@ assert_contains() {
     fi
 }
 
+assert_not_contains() {
+    local haystack="$1" needle="$2" msg="$3"
+    if [[ "$haystack" != *"$needle"* ]]; then
+        green "  PASS  $msg"
+        PASS=$((PASS + 1))
+    else
+        red "  FAIL  $msg"
+        printf '    expected NOT to contain: %s\n' "$needle"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
 # ── Test: --help ─────────────────────────────────────────────────────
 
 echo "=== --help ==="
@@ -128,6 +140,12 @@ assert_contains "$(declare -f launch_term)" "action_probe" \
 assert_contains "$(declare -f launch_term)" "not responding to actions" \
     "launch_term warns when session is not action-ready"
 
+# launch_term no longer has a broken setsid-wrapper PID check
+assert_not_contains "$(declare -f launch_term)" "alacritty_pid" \
+    "launch_term does not capture alacritty PID (setsid wrapper is unreliable)"
+assert_not_contains "$(declare -f launch_term)" "Alacritty exited immediately" \
+    "launch_term does not have broken early-exit check for alacritty"
+
 # switch_desktop should poll until the switch takes effect
 assert_contains "$(declare -f switch_desktop)" "wmctrl -d" \
     "switch_desktop polls wmctrl -d until desktop switch settles"
@@ -145,6 +163,11 @@ assert_contains "$(declare -f restore_floorp)" "session restore" \
     "restore_floorp mentions session restore"
 assert_contains "$(declare -f restore_floorp)" 'grep -ic "ablaze floorp' \
     "restore_floorp counts restored windows via wmctrl"
+# restore_floorp should NOT use $! for floorp PID (setsid wrapper is wrong)
+assert_contains "$(declare -f restore_floorp)" 'floorp_pid_new="$(' \
+    "restore_floorp uses pgrep for post-launch PID check (not \$!)"
+assert_not_contains "$(declare -f restore_floorp)" "kill -0" \
+    "restore_floorp does not use kill -0 on setsid-wrapper PID"
 
 # ── Test: opencode serve+attach constants and functions ───────────────
 
@@ -163,16 +186,20 @@ assert_contains "$(declare -f launch_opencode_daemon)" "opencode serve" \
     "launch_opencode_daemon uses opencode serve"
 assert_contains "$(declare -f launch_opencode_daemon)" "--port" \
     "launch_opencode_daemon passes --port"
-assert_contains "$(declare -f launch_opencode_daemon)" "/global/health" \
-    "launch_opencode_daemon polls /global/health"
+assert_contains "$(declare -f launch_opencode_daemon)" "ss -tlnp" \
+    "launch_opencode_daemon polls ss for port binding"
+assert_not_contains "$(declare -f launch_opencode_daemon)" "/global/health" \
+    "launch_opencode_daemon no longer polls HTTP health"
+assert_not_contains "$(declare -f launch_opencode_daemon)" "curl -sf" \
+    "launch_opencode_daemon no longer uses curl for health check"
 assert_contains "$(declare -f launch_opencode_daemon)" "setsid" \
     "launch_opencode_daemon uses setsid for process isolation"
-assert_contains "$(declare -f launch_opencode_daemon)" "curl -sf" \
-    "launch_opencode_daemon uses curl for health check"
 assert_contains "$(declare -f launch_opencode_daemon)" "PID_FILE" \
     "launch_opencode_daemon stores PID in PID_FILE"
 assert_contains "$(declare -f launch_opencode_daemon)" "already running" \
     "launch_opencode_daemon checks if already running"
+assert_contains "$(declare -f launch_opencode_daemon)" "OPCODE_DAEMON_TIMEOUT" \
+    "launch_opencode_daemon uses OPCODE_DAEMON_TIMEOUT for polling"
 
 # CMD_OPENCODE uses attach mode
 assert_contains "${CMD_OPENCODE}" "opencode attach" \
@@ -226,7 +253,8 @@ echo ""
 # Constants
 assert_eq "15" "$SESSION_READY_TIMEOUT" "SESSION_READY_TIMEOUT is 15"
 assert_eq "floorp" "$FLOORP_BIN" "FLOORP_BIN defaults to floorp"
-assert_eq "4" "$FLOORP_WAIT" "FLOORP_WAIT is 4"
+assert_eq "10" "$FLOORP_WAIT" "FLOORP_WAIT is 10"
+assert_eq "30" "$OPCODE_DAEMON_TIMEOUT" "OPCODE_DAEMON_TIMEOUT is 30"
 
 rm -f "$test_wrapper"
 
