@@ -3,7 +3,7 @@
   "default_agent": "copilot",
   "plugin": ["opencode-notify",
     "./plugins/opencode-worktree-enhanced/index.ts",
-    "./plugins/opencode-metasearch2/index.ts",
+    // "./plugins/opencode-metasearch2/index.ts",  // disabled: brave-search is always available (#5)
     "./plugins/mcp-daemon.ts"
   ],
   "mcp": {
@@ -113,6 +113,7 @@
       "~/kodo/**": "allow",
       "~/.config/opencode/**": "allow",
       "~/.config/lighterbird/**": "allow",
+      "**serena/**": "allow",
       "~/.local/share/lighterbird/**": "allow",
       "~/tmp": "allow",
       "~/tmp/**": "allow"
