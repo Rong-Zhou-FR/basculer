@@ -72,6 +72,10 @@
   },
 
   "permission": {
+    // worktreeCreate spawns fresh opencode sessions — gitmaster only
+    "worktreeCreate": "deny",
+    "worktreeDelete": "allow",
+    "worktreeList": "allow",
     "bash": {
       // Destructive commands — agent must ask for approval:
       "git reset --hard*": "ask",         // destroys all uncommitted local work
@@ -79,6 +83,17 @@
       "git push -f*": "ask",               // same, short form
       "git clean -f*": "ask",              // deletes untracked files/folders
       "git checkout -- *": "ask",          // discards working tree changes
+      // Branch switching — ask (use "git worktree add" instead; multiple agents run concurrently)
+      "git checkout ": "ask",             // switches branch — disrupts other agents
+      "git checkout -b*": "ask",          // creates AND switches to new branch
+      "git checkout -B*": "ask",          // force creates AND switches
+      "git switch *": "ask",              // modern branch switching
+      // Stash operations — ask (affects all agents sharing the repo)
+      "git stash*": "ask",
+      // Worktree operations (safe — isolated dirs, no branch-switching on main)
+      "git worktree add*": "allow",        // creates isolated worktree — safe
+      "git worktree remove*": "ask",       // removes worktree — could affect others
+      "git worktree prune*": "ask",        // prunes worktrees — could affect others
       "git restore .": "ask",              // same, modern form
       "git rm -r*": "ask",                 // removes files from both disk and git
       "git rebase *": "ask",               // rewrites commit history

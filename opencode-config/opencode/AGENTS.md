@@ -294,6 +294,40 @@ When referring to subagents in natural language commands, use the `@` notation:
   - must: FOSS, clearly documented, actively maintained
   - preferred: efficient, lightweight
 
+### Worktree Discipline
+
+**CRITICAL: Never use `git checkout`, `git switch`, `git stash`, or any command
+that changes the current branch or stashes work in the main checkout.**
+
+There are often **multiple AI coding agents running concurrently** on this
+machine (via `opencode serve` + `opencode attach`). If one agent switches
+branches or stashes work, it **silently disrupts every other agent** attached
+to the same repo — they find themselves on a different branch or with work
+suddenly stashed, with no warning.
+
+**Safe operations** (do not affect other agents):
+- Read-only git commands: `status`, `diff`, `log`, `branch --list`
+- Committing to the current branch: `add`, `commit`, `push`, `pull`
+- Restoring files: `git checkout -- <file>`, `git restore <file>`
+
+**Forbidden operations** (use worktree instead):
+- `git checkout <branch>` — switches current branch
+- `git checkout -b <name>` — creates and switches branch
+- `git switch <branch>` — modern branch switching
+- `git stash`, `git stash push`, `git stash pop` — hides/restores work in progress
+
+**Workflow for branch work:**
+1. Create an isolated worktree: `git worktree add /path/to/worktree <branch>`
+2. Change to the worktree directory and work there (keeps your full session context)
+3. When done, change back to the main repo and clean up: `git worktree remove /path/to/worktree`
+
+> **Note:** The `worktreeCreate` tool (spawns a fresh opencode session with zero context)
+> is reserved for the `@gitmaster` agent. For normal branch work, use `git worktree add`
+> directly — it doesn't require approval and keeps your current session intact.
+
+See [Worktree & Branch Cleanup](#worktree--branch-cleanup) below for details
+on cleanup procedures.
+
 ### Git Conventions
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
 - Mention relevant GitHub issues (`#N`) in commit messages
