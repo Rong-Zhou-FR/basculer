@@ -19,7 +19,10 @@ Debug $1
 
 2. Perform a systematic review if the same root cause exists elsewhere in the codebase
    - Search for the same underlying pattern, not just the same error string
-   - Create github issues on relevant repos to document all occurrences
+   - Create a github issue on the affected repo documenting the problem
+     (symptoms, root cause, reproduction steps).
+   - Create additional github issues on other affected repos to document
+     all secondary occurrences of the same root cause
 
 3. BEFORE writing any fix code, brief the user with:
    - The root cause (what mechanism produces the bug)
@@ -31,6 +34,8 @@ Debug $1
 
 5. Run tests relevant to the code changes (not the full suite unless there is specific reason
    to suspect wide-ranging breakage)
+   - After tests pass, update the github issue created in step 2 with the fix
+     summary (what changed, which files, why).
 
 6. User simulation testing (follow AGENTS.md conventions)
 
