@@ -463,16 +463,20 @@ launch_opencode_daemon() {
 
   # ── Start daemon ────────────────────────────────────────────────────
   log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
-  setsid opencode serve --port "$OPCODE_SERVE_PORT" > "$OPCODE_DAEMON_LOG" 2>&1 &
+  # Use systemd-run instead of setsid so the process stays in the user
+  # session scope and is killed on logout (no orphan-to-PID-1 problem).
+  # StandardOutput/Error go to the log file for debugging.
+  systemd-run --user --unit=opencode-serve --collect \
+    --property="StandardOutput=file:${OPCODE_DAEMON_LOG}" \
+    --property="StandardError=file:${OPCODE_DAEMON_LOG}" \
+    --same-dir \
+    opencode serve --port "$OPCODE_SERVE_PORT"
 
   # Poll ss until the port is bound (ground truth).  Port binding is more
   # reliable than HTTP health checks: the kernel binds the port very early
   # in initialization, while the health endpoint may be delayed by plugin
   # loading, provider connections, or other async initialization.
-  #
-  # Once the port appears, extract the real PID from ss output.
-  # (setsid creates a grandchild, so $! captures the short-lived wrapper,
-  # not the actual opencode serve process.)
+  # Extract the real PID from ss output.
   local timeout=$OPCODE_DAEMON_TIMEOUT
   while ((timeout > 0)); do
     port_pid=$(ss -tlnp 2>/dev/null \
