@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: Fast codebase exploration using gortex tools
+description: Fast codebase exploration using serena tools
 permission:
   # Deny all modification tools
   edit: deny
@@ -8,8 +8,8 @@ permission:
   write_memory: deny
   bash: deny
   task: deny
-  # Allow all gortex tools (they are read-focused)
-  gortex_*: allow
+  # Allow all serena tools (they are read-focused)
+  serena_*: allow
 
   # DENY: This subagent is uniquely for codebase exploration
   mcp_hugging_face_*: deny

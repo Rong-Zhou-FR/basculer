@@ -6,24 +6,23 @@ Collection of productivity tweaks for Debian-based Linux. Users clone, customize
 ## Architecture
 ```
 basculer/
-├── opencode-config/    # opencode config — plugins & config
-│   ├── AGENTS.md       # describes the opencode config layout
-│   ├── opencode/       # config files — symlinked to ~/.config/opencode
-│   └── .opencode/      # project-local plugins — auto-loaded by opencode
-│       ├── plugins/    # plugin symlinks + kdco-primitives
-│       ├── tests/      # plugin test files
-│       └── opencode.jsonc  # plugin registration
-├── super-bash/         # bash utility functions — source from ~/.bashrc
-├── espanso/            # espanso match files — symlink to ~/.config/espanso
-├── nvim/               # Neovim config — symlink to ~/.config/nvim
-├── 0-1/                # Zero-to-One planning framework (standalone)
-├── dev/                # development docs, plans, and templates
-├── ZellijAlacritty/    # Alacritty+Zellij terminal stack — run install.sh
-├── ronWorkspace/       # personal workspace launchers — run lighter-dev.bash
-├── tests/              # standalone bash test suites
-├── .serena/            # Serena AI project config (memories, cache)
-├── AGENTS.md           # this file
-├── README.md           # user-facing quick start
+├── opencode-config/     # opencode config — plugins, config, scripts
+│   ├── AGENTS.md        # describes the opencode config layout
+│   ├── opencode/        # config files — symlinked to ~/.config/opencode
+│   ├── .opencode/       # project-local plugins — auto-loaded by opencode
+│   ├── scripts/         # utility scripts (e.g. serena→gortex migration)
+│   └── tests/           # config validation scripts
+├── super-bash/          # bash utility functions — source from ~/.bashrc
+├── espanso/             # espanso match files — symlink to ~/.config/espanso
+├── nvim/                # Neovim config — symlink to ~/.config/nvim
+├── 0-1/                 # Zero-to-One planning framework (standalone)
+├── dev/                 # development docs, plans, and templates
+├── ZellijAlacritty/     # Alacritty+Zellij terminal stack — run install.sh
+├── ronWorkspace/        # personal workspace launchers — run lighter-dev.bash
+├── tests/               # standalone bash test suites
+├── .serena/             # Serena AI project config (disabled; fallback only)
+├── AGENTS.md            # this file
+├── README.md            # user-facing quick start
 ├── LICENSE
 └── .gitignore
 ```
@@ -32,7 +31,7 @@ basculer/
 
 | Module | Integration | Purpose |
 |--------|-------------|---------|
-| [opencode](./opencode-config/AGENTS.md) | symlink | Code assistant config (agents, context-mode, commands) |
+| [opencode](./opencode-config/AGENTS.md) | symlink | Code assistant config (agents, context-mode, commands, MCP) |
 | [super-bash](./super-bash/AGENTS.md) | source | Shell utility functions (dev, automation, text) |
 | [espanso](./espanso/AGENTS.md) | symlink | Text expansion matches |
 | [nvim](./nvim/AGENTS.md) | symlink | Neovim configuration (init.lua, plugins, ftplugin) |
@@ -40,13 +39,16 @@ basculer/
 | [ZellijAlacritty](./ZellijAlacritty/AGENTS.md) | run | Alacritty+Zellij terminal stack — install, configure, use |
 | [ronWorkspace](./ronWorkspace/) | run | Personal workspace launchers (lighter-system development) |
 | [dev](./dev/) | reference | Development plans, examples, templates |
-| [.serena](./.serena/) | internal | AI assistant project config & memories |
+| [.serena](./.serena/) | internal | AI assistant project config & memories (fallback) |
 
 ### Module details
 
-**opencode** — opencode IDE config (agents, commands, context-mode sessions, model configs, plugins). Two directories:
+**opencode** — opencode IDE config (agents, commands, context-mode sessions, model configs, plugins, scripts). Two directories:
 - Config files: `opencode-config/opencode/` — symlinked to `~/.config/opencode/`
 - Project plugins: `opencode-config/.opencode/` — auto-loaded by opencode from project root
+- Scripts: `opencode-config/scripts/` — utility scripts (e.g. `migrate-serena-memories.sh`)
+
+**Code intelligence**: Uses [Gortex](https://github.com/zzet/gortex) (single-binary Go daemon, tree-sitter based) for multi-repo code intelligence — 100+ MCP tools, ~64 MiB for 7 repos. Serena is **disabled** (config kept for easy re-enable). See [MCP Lifecycle Strategy](./opencode-config/AGENTS.md#mcp-lifecycle-strategy).
 
 See [opencode-config/AGENTS.md](./opencode-config/AGENTS.md).
 
@@ -89,9 +91,10 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
   - Configurable via `OPCODE_SERVE_PORT` (default 4096)
 - `tests/test_lighter_dev.bats` — standalone bash test suite for lighter-dev.bash
 
-**.serena** — Serena AI project configuration:
+**.serena** — Serena AI project configuration (disabled; kept as fallback):
 - `memories/` — per‑module memories (opencode/, super-bash/, espanso/, naming-conventions/, config/)
-- `project.yml` — project metadata
+- Memories have been **copied** to Gortex (serena originals untouched)
+- Re-enable by setting `"enabled": true` in `opencode.jsonc`
 
 ## Quick Start
 ```bash

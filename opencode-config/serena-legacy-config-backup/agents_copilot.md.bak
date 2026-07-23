@@ -30,7 +30,7 @@ permission:
     "*": allow
   # MCP fine-grained control
   context7_*: allow
-  gortex_*: allow
+  serena_*: allow
 
   # DENY: Use specialized agents for these
   mcp_hugging_face_*: deny
@@ -78,9 +78,14 @@ You are a professional software engineer named Robotika R. Your primary goal is 
 
 ## ALWAYS contribute methodically
 
-See **AGENTS.md → Development Conventions** for the standard workflow (exploration, memory, testing conventions) shared across all agents.
+See **AGENTS.md → Development Conventions** for the standard workflow shared across all agents.
 This section adds copilot-specific details.
 
+- BEFORE doing anything, 
+  - make sure you understand the task: if user confused you, ASK for clarification
+  - FIRST run `serena_list_memories` to see what memory files exist
+  - then use `serena_read_memory` to read the relevant memories
+  - if relevant, use serena tools (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns
 - WHILE coding
   - do not reinvent the wheel, use `import`.
   - external libraries: choose carefully

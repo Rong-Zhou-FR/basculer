@@ -6,9 +6,13 @@ permission:
   # Read-only for code analysis
   read: allow
   # Deny modifications - review only (do NOT use these tools even if available)
-  gortex_edit: deny
-  gortex_refactor: deny
-  gortex_write: deny
+  serena_replace_symbol_body: deny
+  serena_insert_after_symbol: deny
+  serena_insert_before_symbol: deny
+  serena_rename_symbol: deny
+  serena_safe_delete_symbol: deny
+  serena_create_text_file: deny
+  serena_replace_content: deny
   edit: deny
   write: deny
 

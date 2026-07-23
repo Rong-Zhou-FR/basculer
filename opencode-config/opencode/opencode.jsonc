@@ -32,9 +32,20 @@
       "url": "http://127.0.0.1:8124/mcp",
       "enabled": true
     },
-    "serena": {
+    "gortex": {
+      // Gortex: single-binary Go daemon for multi-repo code intelligence.
+      // One daemon for all repos (~64 MiB) vs serena's ~600 MB per instance.
+      // Tree-sitter based, 100+ MCP tools, session isolation, structured memories.
+      // https://github.com/zzet/gortex
       "type": "local",
+      "command": ["gortex", "mcp"],
       "enabled": true,
+      "timeout": 30000
+    },
+    "serena": {
+      // DISABLED — replaced by gortex (above). Keep config for easy re-enable.
+      "type": "local",
+      "enabled": false,
       "command": ["serena", "start-mcp-server", "--project-from-cwd", "--open-web-dashboard", "false"],
       "timeout": 60000
     },

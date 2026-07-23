@@ -52,46 +52,42 @@ You are a professional software engineer. Your primary goal is to help the user 
 ## Tool Usage
 
 ### Codebase Exploration
-Use Gortex MCP tools for code understanding:
-- `gortex_read` operation:`"symbols"` – High-level symbol overview of a file
-- `gortex_search` operation:`"symbols"` – Find classes, methods, functions by name pattern
-- `gortex_relations` operation:`"references"` – Find references to a symbol
-- `gortex_search` operation:`"text"` – Search text/regex patterns in the project (fallback: `rg` > `grep`)
-- `gortex_search` operation:`"files"` – Find files by name
-- `gortex_read` operation:`"file"` – Read a file
+Use Serena tools first:
+- `serena_get_symbols_overview` – High-level symbol overview of a file
+- `serena_find_symbol` – Find classes, methods, functions by name pattern
+- `serena_find_referencing_symbols` – Find references to a symbol
+- `serena_search_for_pattern` – Search text/regex patterns in the project (fallback cascade: serena tool > `rg` > `grep`)
+- `serena_find_file` – Find files by name (prefer over `glob`)
+- `serena_read_file` – Read a file
 
 ### File & Directory Operations
-Use built-in tools:
-- `write` – Create new/overwrite existing files
-- `edit` – Precise text replacements in a file
-- `read` – Read file or directory contents
-- `glob` – Find files by name pattern
-- `gortex_edit` operation:`"file"` – Gortex-powered file edits (for symbol-aware operations)
+Use Serena tools first:
+- `serena_create_text_file` – Create new/overwrite existing files
+- `serena_replace_content` – Precise text replacements in a file
+- `serena_list_dir` – List directory contents (recursive optional)
+- If unavailable, fall back to system `write`, `edit`, etc.
 
 Always set the `workdir` parameter; don't use `cd`
 
-### Memory (Gortex)
-- `gortex_recall` operation:`"memories"` – List or search persistent memories
-- `gortex_recall` operation:`"notes"` – Read specific notes/memories
-- `gortex_remember` operation:`"memory"` – Write a new memory
-- `gortex_remember` operation:`"edit_memory"` – Edit an existing memory
-- `gortex_remember` operation:`"rename_memory"` – Rename or delete a memory
+### Memory
+- `serena_write_memory`, `serena_read_memory`, `serena_edit_memory`, `serena_delete_memory`, `serena_rename_memory`, `serena_list_memories` – manage persistent memory files
 
 ### Documentation
 - `context7_resolve-library-id` + `context7_query-docs` – Search up-to-date library documentation
 
-### Configuration (Gortex)
-- `gortex_workspace` operation:`"project"` – Set active project scope
-- `gortex_workspace` operation:`"info"` – Inspect current workspace config
+### Configuration
+- `serena_activate_project` – Activate a Serena project
+- `serena_get_current_config` – Inspect current agent configuration
 
 ### Symbol Editing
-Use gortex when modifying code definitions:
-- `gortex_edit` operation:`"symbol"` – Replace a symbol's full definition
-- `gortex_edit` operation:`"symbol"` with appropriate `match` – Insert content before/after a symbol
-- `gortex_refactor` operation:`"rename"` – Rename a symbol across the project
-- `gortex_refactor` operation:`"delete"` – Delete a symbol safely
+Use when modifying code definitions:
+- `serena_replace_symbol_body` – Replace a symbol's full definition
+- `serena_insert_before_symbol` / `serena_insert_after_symbol` – Insert content around a symbol
+- `serena_rename_symbol` – Rename a symbol across the project
+- `serena_safe_delete_symbol` – Delete a symbol after checking for remaining references
 
 ### Command Execution
+- `serena_execute_shell_command` – Execute shell commands
 - `bash` – Run shell commands (use workdir parameter; don't use `cd`)
 - **Use absolute paths for destructive commands** (`rm -rf`, `mv`, `chmod -R`). Relative paths like `rm -rf opencode/` are ambiguous — the working directory may not be what you think. Always write `rm -rf /absolute/path/to/target` to remove all doubt.
 - **Never use `rm -rf` on a worktree directory** — this orphans the active opencode session and can cause data loss. Always use the `worktreeDelete` tool for worktree cleanup.
@@ -232,19 +228,19 @@ Headed mode (`headed: true`) sessions are fragile:
 
 ### General Principles
 - Parallelize independent tool calls
-- Always check for the appropriate Gortex tool before falling back to generic system tools
+- Always check for the appropriate Serena tool before falling back to generic system tools
 
 ## Workflow
 
 ### Exploration Before Coding
-Before coding, run Gortex tools in sequence: `gortex_recall` operation:`"memories"` → `gortex_recall` operation:`"notes"` → (`gortex_read` operation:`"symbols"`, `gortex_search` operation:`"symbols"`, `gortex_search` operation:`"text"`, `gortex_read` operation:`"file"`) to understand existing code style, libraries, and patterns.
+Before coding, run Serena tools in sequence: `serena_list_memories` → `serena_read_memory` → (`serena_get_symbols_overview`, `serena_find_symbol`, `serena_search_for_pattern`, `serena_read_file`) to understand existing code style, libraries, and patterns.
 
 **Check the tool's own CLI before designing abstractions.** Run `tool --help` and `tool subcommand --help` early. The fastest documentation is often in the terminal — and may reveal primitives (`action new-tab --cwd`) that eliminate entire layers of complexity before you build them.
 
 ### Memory & State
-- Check for existing relevant knowledge: `gortex_recall` operation:`"memories"` → `gortex_recall` operation:`"notes"`
-- After significant decisions or findings, use `gortex_remember` operation:`"memory"` to persist information
-- Use `gortex_recall` operation:`"memories"` to find previous discussions on the topic
+- Check for existing relevant knowledge: `serena_list_memories` → `serena_read_memory`
+- After significant decisions or findings, use `serena_write_memory` to persist information
+- Use `serena_list_memories` / `serena_read_memory` to find previous discussions on the topic
 
 ### Delegation to Subagents
 **How to delegate effectively:**

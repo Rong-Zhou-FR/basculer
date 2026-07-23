@@ -37,6 +37,8 @@ Project-local plugins and state live alongside the project's `.opencode/` direct
 │   │   └── kdco-primitives/
 │   ├── tests/           # Plugin test files
 │   └── package.json
+├── scripts/             # Utility scripts
+│   └── migrate-serena-memories.sh   # Copy serena memories → Gortex
 └── tests/               # Config validation scripts
     └── validate-opencode-config.sh
 ```
@@ -107,6 +109,7 @@ ln -sf ~/kodo/opencode-tweaks/<new-plugin>/src/index.ts <project>/.opencode/plug
 ## Dependencies
 - [opencode](https://www.npmjs.com/package/opencode) — AI coding assistant (npm package)
 - [@opencode-ai/plugin](https://www.npmjs.com/package/@opencode-ai/plugin) — Plugin SDK (installed in `.opencode/package.json`)
+- [Gortex](https://github.com/zzet/gortex) — Code intelligence daemon (single Go binary, tree-sitter based)
 - context-mode (optional) — for session indexing and persistent context
 
 ## API Key Management
@@ -175,7 +178,25 @@ Three-tier mitigation:
 
 Serena proxy rejected: per-project sharing doesn't save memory in worktree-isolated workflows where every session targets a different directory.
 
-See [issue #34](https://github.com/Rong-Zhou-FR/basculer/issues/34) for full discussion.
+### Code Intelligence: Gortex (primary) + Serena (fallback)
+
+Serena has been **replaced by Gortex** as the primary code intelligence engine (see [issue #37](https://github.com/Rong-Zhou-FR/basculer/issues/37)):
+
+| Aspect | Serena (disabled) | Gortex (active) |
+|--------|-------------------|-----------------|
+| Architecture | Per-session Python + LSP | Single Go daemon, tree-sitter |
+| Memory (7 repos) | ~4.2 GB (600 MB × 7) | ~64 MiB (single daemon) |
+| MCP tools | 27 tools | 100+ tools |
+| Startup | 7 concurrent processes, LSP races | Daemon pre-indexed, instant attach |
+| Session isolation | Per-session process | Built into daemon |
+| Memory system | Flat markdown files | Structured graph entries |
+| Install | `serena start-mcp-server` | `gortex daemon start --detach` |
+
+Gortex daemon runs as a systemd --user service (`com.zzet.gortex.service`), auto-starting on login. It tracks all repos in the lighter-dev workspace. `gortex mcp` proxies MCP requests from opencode to the daemon.
+
+**Serena is disabled** (`"enabled": false` in `opencode.jsonc`) but kept in config for easy one-field re-enable. Serena memories were copied (not moved) to Gortex via `migrate-serena-memories.sh`.
+
+See [issue #37](https://github.com/Rong-Zhou-FR/basculer/issues/37) for the experiment rationale and [issue #34](https://github.com/Rong-Zhou-FR/basculer/issues/34) for the original MCP lifecycle discussion.
 
 ## Conventions
 

@@ -19,7 +19,7 @@ permission:
   codesearch: deny
   # MCP fine-grained control
   context7_*: allow
-  gortex_*: allow
+  serena_*: allow
 
   # DENY: Use specialized agents for these
   mcp_hugging_face_*: deny
