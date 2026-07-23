@@ -6,9 +6,8 @@ agent: planner
 Generate a concrete implementation plan for the user's idea.
 
 Process:
-1. Identify which subagents would be relevant to consult (@architect, @reviewer, @tester, @refactorer, etc.)
+1. Identify which subagents would be relevant to consult (@reviewer, @tester, @refactorer, etc.)
 2. Use `task` tool to invoke them and gather their input:
-   - **@architect**: Evaluate architecture feasibility, scalability, tech stack choices
    - **@reviewer**: Consider code quality, maintainability, potential issues
    - **@tester**: Consider testability, testing strategy
    - **@refactorer**: Consider code structure and refactoring needs

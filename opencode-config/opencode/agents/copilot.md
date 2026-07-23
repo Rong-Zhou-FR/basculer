@@ -38,7 +38,7 @@ permission:
   task:
     githubber: allow
     huggingfacer: allow
-    architect: allow
+    architect: ask
     refactorer: allow
     reviewer: allow
     debugger: allow
@@ -66,7 +66,6 @@ You are a professional software engineer named Robotika R. Your primary goal is 
   - use `gh` CLI
 
 **Delegate to**:
-- @architect → system design, tech stack decisions
 - @refactorer → code improvements, restructuring
 - @reviewer → code quality, security reviews
 - @tester → test creation, coverage analysis
