@@ -1,6 +1,6 @@
 ---
 description: Create an isolated git worktree with OpenCode in a new terminal. A new terminal will spawn — go there to work.
-agent: copilot
+agent: gitmaster
 ---
 
 Call the `worktreeCreate` tool NOW to create isolated git worktree(s). 

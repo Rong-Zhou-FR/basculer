@@ -1,6 +1,5 @@
 ---
 description: Mark a worktree for deferred cleanup (validates clean state + merged branch, then marks for cleanup). Actual deletion (remove directory, delete branches) happens on the next worktreeCreate call.
-agent: copilot
 ---
 
 1. Commit all uncommitted changes on the feature branch

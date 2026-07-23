@@ -1,6 +1,5 @@
 ---
 description: List plugin-managed worktrees and git worktree status
-agent: copilot
 ---
 
 Call `worktreeList` now and summarize:
