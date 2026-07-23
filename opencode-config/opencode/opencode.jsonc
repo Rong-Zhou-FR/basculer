@@ -140,6 +140,15 @@
     },
     "external_directory": {
       "*": "ask",
+      // Read-only runtime introspection (/proc is a kernel interface, not a data dir)
+      "/proc/meminfo": "allow",
+      "/proc/cpuinfo": "allow",
+      "/proc/loadavg": "allow",
+      "/proc/uptime": "allow",
+      "/proc/stat": "allow",
+      "/proc/version": "allow",
+      "/proc/**/status": "allow",
+      "/proc/**/cmdline": "allow",
       "/tmp": "allow",
       "/tmp/**": "allow",
       "~/.local/share/opencode/**": "allow",
@@ -151,6 +160,10 @@
       "~/.local/share/lighterbird/**": "allow",
       "~/tmp": "allow",
       "~/tmp/**": "allow"
+    },
+    "edit": {
+      "/proc/**": "deny",
+      "*": "allow"
     }
   },
 
