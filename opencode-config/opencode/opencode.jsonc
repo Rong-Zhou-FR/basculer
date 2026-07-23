@@ -74,6 +74,7 @@
   "permission": {
     // worktreeCreate spawns fresh opencode sessions — gitmaster only
     "worktreeCreate": "deny",
+    "worktreeNew": "allow",
     "worktreeDelete": "allow",
     "worktreeList": "allow",
     "bash": {
@@ -173,6 +174,9 @@
       "model": "opencode/deepseek-v4-flash-free"
     },
     "gitmaster": {
+      "model": "opencode/deepseek-v4-flash-free"
+    },
+    "build": {
       "model": "opencode/deepseek-v4-flash-free"
     }
   }

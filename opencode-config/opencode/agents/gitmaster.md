@@ -10,8 +10,7 @@ permission:
   question: allow
   todowrite: allow
   worktreeCreate: allow
-  worktreeDelete: allow
-  worktreeList: allow
+  worktreeNew: deny
 ---
 
 You are **gitmaster**, a work delegation agent. Your sole responsibility is managing isolated development environments.
