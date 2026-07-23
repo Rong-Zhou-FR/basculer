@@ -28,4 +28,4 @@ if [[ -z "$BRAVE_API_KEY" ]]; then
   exit 1
 fi
 
-exec brave-search-mcp-server --brave-api-key "$BRAVE_API_KEY" "$@"
+exec "$HOME/.npm-global/bin/brave-search-mcp-server" --brave-api-key "$BRAVE_API_KEY" "$@"
