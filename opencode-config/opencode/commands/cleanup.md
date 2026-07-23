@@ -27,11 +27,11 @@ Identify all local and remote tracking branches (excluding `main`, `master`, `de
 
 | Attribute | How to check |
 |-----------|-------------|
-| Merged into `main`? | `git branch --merged main` (local), or check if all commits are reachable from `main`. **Warning:** squash/rebase merges are invisible to ancestry checks — `--merged` will say "no" even if the branch was merged. |
+| Merged into `main`? | **Step 1 (definitive):** `gh pr list --state merged --head <branch> --json number,mergedAt 2>/dev/null` — returns PR info if the branch was merged via any method (regular, squash, rebase). Fork-PR branches from a different head repo may not match `--head`. **Step 2 (ancestry):** `git merge-base --is-ancestor <branch> main` or `git branch --merged main` — only catches regular merges. **Step 3 (content):** `git diff --quiet main...<branch>` (3-dot) — catches clean squash/rebase merges (exits 0 if tree content identical). **Warning:** ancestry is blind to squash/rebase. Content diff fails if conflicts were resolved during squash or if `main` advanced past the merge. If Step 1 finds nothing and Steps 2-3 say "not merged", the merge is not programmatically detectable — ask user to confirm, then tag-before-delete. |
 | Last commit date | `git for-each-ref --format='%(committerdate:unix)' refs/heads/<branch>` |
 | Uncommitted changes? | `git status --porcelain` on the branch (switch briefly or check `git stash list` for branch-specific stashes) |
 | Unpushed commits? | `git log origin/main..<branch>` or `git log --oneline <branch> --not origin/main` |
-| Clean merge? | Tier 1: `git merge-base --is-ancestor <branch> main` (regular merges). Tier 2: `git diff --quiet main..<branch>` (squash/rebase — exits 0 if trees identical). **Tier 3 (hint, not proof):** `git log main --oneline --grep="$(git log -1 --format='%s' <branch>)"` — if the branch tip commit message appears in `main`'s log, the branch was likely squash-merged. If all three fail, merge is not detectable programmatically — ask user to confirm, then tag-before-delete. |
+| Clean merge? | If not merged (detected in "Merged into `main`?" row above): `git merge --no-commit --no-ff main` (dry run). No conflicts → `MERGE_CLEAN`. Conflicts → `MERGE_CONFLICT`. This attribute is about mergeability of unmerged branches, not about detecting past merges — the detection methods (ancestry, content-diff with `main...<branch>`) now live in "Merged into `main`?" above. |
 | Remote counterpart exists? | `git branch -r` contains `origin/<branch>` |
 
 Classify each branch into one of:
