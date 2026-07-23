@@ -422,14 +422,16 @@ restore_floorp() {
 
 # ── OpenCode daemon ──────────────────────────────────────────────────────
 
-# Start the shared `opencode serve` daemon. All Zellij tabs will attach
-# to this single instance, sharing the Bun/Node.js runtime, LLM connections,
-# and MCP infrastructure — instead of each tab spawning its own ~600MB server.
+# Start (or restart) the shared `opencode serve` daemon. All Zellij tabs will
+# attach to this single instance, sharing the Bun/Node.js runtime, LLM
+# connections, and MCP infrastructure — instead of each tab spawning its own
+# ~600MB server.
+#
+# Every run kills any existing server first and starts fresh, so the daemon
+# always picks up the latest plugin code.
 launch_opencode_daemon() {
-  # ── Port-based detection (primary) ──────────────────────────────────
-  # ss -tlnp shows listening TCP sockets with owning PID.  This is more
-  # reliable than PID-file-only checks because the port binding is the
-  # ground truth — if the daemon is alive, its port is bound.
+  # ── Kill any existing opencode server on our port ────────────────────
+  # Every rerun starts fresh so the server picks up latest plugin code.
   local port_pid
   port_pid=$(ss -tlnp 2>/dev/null \
     | grep -F ":${OPCODE_SERVE_PORT}" \
@@ -437,27 +439,33 @@ launch_opencode_daemon() {
     | grep -o '[0-9][0-9]*' \
     || true)
   if [[ -n "$port_pid" ]]; then
-    # Port is held — verify the owning process is opencode
     if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
-      # Store the real PID from ss (ground truth)
-      echo "$port_pid" > "$OPCODE_DAEMON_PID_FILE"
-      log_info "OpenCode server daemon already running (PID $port_pid)"
-      return 0
-    fi
-    log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
-    log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
-    log_warn "  The opencode daemon cannot start until that process releases the port."
-    return 1
-  fi
-
-  # ── PID-file fallback (for systems without ss(8)) ───────────────────
-  # If the PID file points to a process that is dead (recycled PID),
-  # clean up the stale file so we don't try to wait for a dead process.
-  if [[ -f "$OPCODE_DAEMON_PID_FILE" ]]; then
-    local existing_pid
-    existing_pid=$(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || true)
-    if [[ -n "$existing_pid" ]] && ! kill -0 "$existing_pid" 2>/dev/null; then
+      log_info "Stopping existing OpenCode server (PID $port_pid) …"
+      # Clean stop via systemd unit (if managed by us) or direct kill
+      systemctl --user stop opencode-serve 2>/dev/null || kill "$port_pid" 2>/dev/null || true
+      # Wait for port to be released
+      local wait_release=10
+      while ((wait_release > 0)); do
+        port_pid=$(ss -tlnp 2>/dev/null \
+          | grep -F ":${OPCODE_SERVE_PORT}" \
+          | grep -o 'pid=[0-9][0-9]*' \
+          | grep -o '[0-9][0-9]*' \
+          || true)
+        [[ -z "$port_pid" ]] && break
+        sleep 1
+        ((wait_release--)) || true
+      done
+      if [[ -n "$port_pid" ]]; then
+        log_warn "Port ${OPCODE_SERVE_PORT} still held after 10s — forcing…"
+        kill -9 "$port_pid" 2>/dev/null || true
+        sleep 1
+      fi
       rm -f "$OPCODE_DAEMON_PID_FILE"
+    else
+      log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
+      log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
+      log_warn "  Cannot start opencode daemon until that process releases the port."
+      return 1
     fi
   fi
 
@@ -652,7 +660,8 @@ main() {
   log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
   log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
   echo ""
-  log_info "Kill daemon:      kill \$(cat ${OPCODE_DAEMON_PID_FILE})"
+  log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
+  log_info "Restart daemon:   Re-run this script (kills + restarts)"
   log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
 }
 
