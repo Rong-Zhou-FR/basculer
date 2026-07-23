@@ -71,6 +71,13 @@
     }
   },
 
+  "experimental": {
+    // Global timeout for MCP requests (ms). Mitigates transient listTools()
+    // failures in opencode serve+attach mode that permanently remove MCP
+    // clients from state.clients with no retry (opencode#38266, #17099).
+    "mcp_timeout": 30000
+  },
+
   "permission": {
     // worktreeCreate spawns fresh opencode sessions — gitmaster only
     "worktreeCreate": "deny",
