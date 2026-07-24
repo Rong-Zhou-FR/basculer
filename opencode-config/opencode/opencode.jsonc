@@ -107,8 +107,11 @@
       "git checkout -b*": "ask",          // creates AND switches to new branch
       "git checkout -B*": "ask",          // force creates AND switches
       "git switch *": "ask",              // modern branch switching
-      // Stash operations — ask (affects all agents sharing the repo)
-      "git stash*": "ask",
+      // Destructive stash operations — ask (modifies working tree shared by all agents)
+      "git stash drop*": "ask",
+      "git stash clear*": "ask",
+      "git stash pop*": "ask",
+      "git stash apply*": "ask",
       // Worktree operations (safe — isolated dirs, no branch-switching on main)
       "git worktree add*": "allow",        // creates isolated worktree — safe
       "git worktree remove*": "ask",       // removes worktree — could affect others

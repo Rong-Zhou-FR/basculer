@@ -58,11 +58,36 @@ fi
 
 # Must run from repo root so opencode discovers .opencode/ and opencode.jsonc
 cd "$REPO_ROOT"
-if timeout 15 opencode debug config > /tmp/opencode-validate.log 2>&1; then
+
+# Locate the opencode binary; common known locations
+OPENCODE_BIN=""
+for candidate in \
+  "$HOME/.opencode/bin/opencode" \
+  "$HOME/.npm-global/bin/opencode" \
+  "/usr/local/bin/opencode" \
+  "/usr/bin/opencode"; do
+  if [ -x "$candidate" ]; then
+    OPENCODE_BIN="$candidate"
+    break
+  fi
+done
+
+# Fall back to PATH lookup
+if [ -z "$OPENCODE_BIN" ]; then
+  OPENCODE_BIN="$(command -v opencode 2>/dev/null || true)"
+fi
+
+if [ -z "$OPENCODE_BIN" ]; then
+  fail=$((fail+1)); done_msg "opencode binary not found" fail
+  echo -e "\n  Skipping config-load check (opencode not installed on PATH or at known locations)."
+  echo -e "  Install: npm install -g opencode\n"
+else
+if timeout 15 "$OPENCODE_BIN" debug config > /tmp/opencode-validate.log 2>&1; then
 	pass=$((pass+1)); done_msg "opencode config loads" pass
 else
 	msg=$(head -3 /tmp/opencode-validate.log)
 	fail=$((fail+1)); done_msg "opencode config loads — $msg" fail
+fi
 fi
 
 # ── 4. Summary ──────────────────────────────────────────────────────
