@@ -1,0 +1,16 @@
+install: ~/kodo/open-design/
+launch:  ~/kodo/open-design/launch.sh
+web ui: http://127.0.0.1:38389
+daemon: http://127.0.0.1:34207
+
+alias:   alias od-manage='~/kodo/open-design/launch.sh'
+start:   od-manage start web
+stop:    od-manage stop
+status:  od-manage status
+
+config:
+  settings → execution mode → rescan (detects opencode on PATH)
+
+usage:
+  pick design system + template → type prompt → send
+  agent runs opencode as backend
