@@ -18,7 +18,7 @@
 #                       | fe (web) | shell | semantika (git pull) | fe (web) | shell
 #   WS 2 (desk 1) — 1 terminal, 3 tabs:
 #     ronzz-markmap:     shell | email-write (ls) | diary-write (ls)
-#   WS 3 (desk 2) — 1 terminal, 3 tabs:
+#   WS 3 (desk 2) — 1 terminal, 3 tabs + desktop-plus GUI:
 #     autish:           A repl sistemo | shell | A repl semantika
 #   WS 4 (desk 3) — 2 terminals:
 #     basculer:         basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)
@@ -112,6 +112,10 @@ SELF="$(basename "${BASH_SOURCE[0]}")"
 HAS_WMCTRL=false
 command -v wmctrl &>/dev/null && HAS_WMCTRL=true
 
+# Dry-run mode flag — set via --dry-run flag; functions check this to skip
+# side-effects and print their launch plan instead.
+DRY_RUN=false
+
 # Seconds to wait for a Zellij session daemon to start after launch.
 SESSION_READY_TIMEOUT=15
 
@@ -160,7 +164,7 @@ switch_desktop() {
     # Poll until the switch takes effect (wmctrl -d shows '*' on the target).
     # This handles window managers with asynchronous desktop switching.
     local settle=0
-    while (( settle < 20 )); do
+    while ((settle < 20)); do
       if wmctrl -d 2>/dev/null | awk '$2 == "*" {print $1; exit}' | grep -qxF "$desk_index" 2>/dev/null; then
         break
       fi
@@ -194,6 +198,17 @@ launch_term() {
   local session_name="lighter-dev-${label}"
   local t_start
 
+  if $DRY_RUN; then
+    local desk_num=$((desk_index + 1))
+    log_info "Terminal «${label}» on desk ${desk_num} — ${#tab_specs[@]} tabs:"
+    local tab_name workdir cmd
+    for spec in "${tab_specs[@]}"; do
+      IFS='|' read -r tab_name workdir cmd <<<"$spec"
+      log_info "  Tab  «${tab_name}»  @ ${workdir}  ${cmd:-(shell)}"
+    done
+    return 0
+  fi
+
   log_info "Launching «${label}» on desktop $((desk_index + 1)) …"
 
   # Step 0: Preemptively clean all lighter-dev-* EXITED sessions from the
@@ -226,7 +241,7 @@ launch_term() {
       grep -v '(EXITED' |
       awk '{print $1}' |
       grep -qxF "$session_name"; then
-      break  # stale session fully removed
+      break # stale session fully removed
     fi
     sleep 1
     ((delete_timeout--))
@@ -269,7 +284,7 @@ launch_term() {
     ((timeout--)) || true
   done
 
-  local t_elapsed=$(( $(date +%s) - t_start ))
+  local t_elapsed=$(($(date +%s) - t_start))
   if ((timeout == 0)); then
     log_warn "Session «${session_name}» not registered within ${SESSION_READY_TIMEOUT}s (${t_elapsed}s waited)"
     log_warn "  Alacritty log: $(cat /tmp/lighter-dev-alacritty-${label}.log 2>/dev/null || echo "empty")"
@@ -287,7 +302,7 @@ launch_term() {
   for probe_try in 1 2 3; do
     action_probe=$(zellij --session "$session_name" action query-tab-names 2>/dev/null) || true
     if ! echo "$action_probe" | grep -qF '[Created'; then
-      break  # session responded with tab names
+      break # session responded with tab names
     fi
     sleep 1
   done
@@ -306,17 +321,17 @@ launch_term() {
     if [[ -z "$cmd" ]]; then
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
-        --name "$tab_name" --cwd "$workdir" && \
+        --name "$tab_name" --cwd "$workdir" &&
         t_created=$((t_created + 1)) || t_failed=$((t_failed + 1))
     else
       run_captured "new-tab ${tab_name}" \
         zellij --session "$session_name" action new-tab \
         --name "$tab_name" --cwd "$workdir" \
-        -- bash -c "$cmd; exec bash" && \
+        -- bash -c "$cmd; exec bash" &&
         t_created=$((t_created + 1)) || t_failed=$((t_failed + 1))
     fi
   done
-  if (( t_failed > 0 )); then
+  if ((t_failed > 0)); then
     log_warn "Session «${session_name}»: ${t_created} tabs created, ${t_failed} failed"
   fi
 
@@ -332,7 +347,7 @@ launch_term() {
   local actual_names actual_count missing_count=0
   actual_names=$(zellij --session "$session_name" action query-tab-names 2>/dev/null) || true
   actual_count=$(echo "$actual_names" | grep -c . || true)
-  if (( actual_count < expected_count )); then
+  if ((actual_count < expected_count)); then
     log_warn "Session «${session_name}»: ${actual_count}/${expected_count} tabs. Retrying missing..."
     for spec in "${tab_specs[@]}"; do
       IFS='|' read -r tab_name workdir cmd <<<"$spec"
@@ -350,12 +365,12 @@ launch_term() {
         missing_count=$((missing_count + 1))
       fi
     done
-    if (( missing_count > 0 )); then
+    if ((missing_count > 0)); then
       log_info "Retried ${missing_count} missing tab(s) for «${session_name}»."
       # Second-verification pass
       local verify_count
       verify_count=$(zellij --session "$session_name" action query-tab-names 2>/dev/null | grep -c . || true)
-      if (( verify_count < expected_count )); then
+      if ((verify_count < expected_count)); then
         log_warn "After retry: ${verify_count}/${expected_count} tabs in «${session_name}»."
         log_warn "Manually inspect with: zellij attach '${session_name}'"
       fi
@@ -369,6 +384,11 @@ launch_term() {
 # reopens previous windows.  We do this *before* the terminal barrage so
 # browser windows have time to appear before Alacritty takes focus.
 restore_floorp() {
+  if $DRY_RUN; then
+    log_info "Floorp: would restore if not running (wait ${FLOORP_WAIT}s for windows)"
+    return 0
+  fi
+
   local floorp_pid
 
   # ── Check if already running ──────────────────────────────────────────────
@@ -430,14 +450,19 @@ restore_floorp() {
 # Every run kills any existing server first and starts fresh, so the daemon
 # always picks up the latest plugin code.
 launch_opencode_daemon() {
+  if $DRY_RUN; then
+    log_info "OpenCode: would start server on port ${OPCODE_SERVE_PORT} via systemd-run"
+    return 0
+  fi
+
   # ── Kill any existing opencode server on our port ────────────────────
   # Every rerun starts fresh so the server picks up latest plugin code.
   local port_pid
-  port_pid=$(ss -tlnp 2>/dev/null \
-    | grep -F ":${OPCODE_SERVE_PORT}" \
-    | grep -o 'pid=[0-9][0-9]*' \
-    | grep -o '[0-9][0-9]*' \
-    || true)
+  port_pid=$(ss -tlnp 2>/dev/null |
+    grep -F ":${OPCODE_SERVE_PORT}" |
+    grep -o 'pid=[0-9][0-9]*' |
+    grep -o '[0-9][0-9]*' ||
+    true)
   if [[ -n "$port_pid" ]]; then
     if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
       log_info "Stopping existing OpenCode server (PID $port_pid) …"
@@ -446,11 +471,11 @@ launch_opencode_daemon() {
       # Wait for port to be released
       local wait_release=10
       while ((wait_release > 0)); do
-        port_pid=$(ss -tlnp 2>/dev/null \
-          | grep -F ":${OPCODE_SERVE_PORT}" \
-          | grep -o 'pid=[0-9][0-9]*' \
-          | grep -o '[0-9][0-9]*' \
-          || true)
+        port_pid=$(ss -tlnp 2>/dev/null |
+          grep -F ":${OPCODE_SERVE_PORT}" |
+          grep -o 'pid=[0-9][0-9]*' |
+          grep -o '[0-9][0-9]*' ||
+          true)
         [[ -z "$port_pid" ]] && break
         sleep 1
         ((wait_release--)) || true
@@ -487,14 +512,14 @@ launch_opencode_daemon() {
   # Extract the real PID from ss output.
   local timeout=$OPCODE_DAEMON_TIMEOUT
   while ((timeout > 0)); do
-    port_pid=$(ss -tlnp 2>/dev/null \
-      | grep -F ":${OPCODE_SERVE_PORT}" \
-      | grep -o 'pid=[0-9][0-9]*' \
-      | grep -o '[0-9][0-9]*' \
-      || true)
+    port_pid=$(ss -tlnp 2>/dev/null |
+      grep -F ":${OPCODE_SERVE_PORT}" |
+      grep -o 'pid=[0-9][0-9]*' |
+      grep -o '[0-9][0-9]*' ||
+      true)
     if [[ -n "$port_pid" ]]; then
       if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
-        echo "$port_pid" > "$OPCODE_DAEMON_PID_FILE"
+        echo "$port_pid" >"$OPCODE_DAEMON_PID_FILE"
         log_ok "OpenCode server daemon ready (PID $port_pid)"
         return 0
       fi
@@ -521,35 +546,9 @@ main() {
     exit 0
     ;;
   --dry-run | --dry)
-    log_warn "Dry run — no terminals will be launched."
+    DRY_RUN=true
+    log_info "Dry run — validating configuration without launching anything."
     echo ""
-    log_info "Would launch workspace 1 (desk $((DESK_WS1 + 1))):"
-    log_info "  lighter-config:  nvim README.md | shell"
-    log_info "  lighterbird:     git pull       | shell"
-    log_info "  semantika:       git pull       | shell"
-    echo ""
-    log_info "Would launch workspace 2 (desk $((DESK_WS2 + 1))):"
-    log_info "  ronzz-markmap:    shell | email-write (ls) | diary-write (ls)"
-    echo ""
-    log_info "Would launch workspace 3 (desk $((DESK_WS3 + 1))):"
-    log_info "  autish:          A repl sistemo | shell | A repl semantika"
-    echo ""
-    log_info "Would launch workspace 4 (desk $((DESK_WS4 + 1))):"
-    log_info "  basculer:        basculer-LLM (attach)  | shell"
-    log_info "                   opencode-config-LLM (attach) | shell"
-    log_info "                   opencode-agents (ls) | opencode-commands (ls)"
-    log_info "  scratch:         nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md"
-    echo ""
-    log_info "Would launch workspace 5 (desk $((DESK_WS5 + 1))):"
-    log_info "  lighterbird:     gitmaster (mini+attach) | opencode (attach) | shell"
-    log_info "  semantika:       gitmaster (mini+attach) | opencode (attach) | opencode (attach) | shell"
-    log_info "  ronzzdoi:        gitmaster (mini+attach) | opencode (attach) | shell"
-    echo ""
-    log_info "Would launch workspace 12 (desk $((DESK_WS12 + 1))):"
-    log_info "  fec-LLM:         opencode (attach) | shell | content"
-    echo ""
-    log_info "(All opencode tabs share one server at ${OPCODE_SERVE_URL})"
-    exit 0
     ;;
   esac
 
@@ -612,6 +611,14 @@ main() {
     "autish-sh|${DIR_AUTISH}|" \
     "A-semantika-repl|${DIR_AUTISH}|${CMD_A_REPL_SEMANTIKA}"
 
+  # Launch desktop-plus GUI (detached, not inside a terminal)
+  if $DRY_RUN; then
+    log_info "GUI: desktop-plus (detached)"
+  else
+    log_info "Launching desktop-plus GUI …"
+    setsid desktop-plus >/dev/null 2>&1 &
+  fi
+
   # ── Workspace 4: opencode-config + scratch ─────────────────────────
   log_info "=== Workspace 4 ==="
   launch_term "$DESK_WS4" "basculer" \
@@ -653,16 +660,21 @@ main() {
     "content|${DIR_FEC}/src/content|"
 
   echo ""
-  log_ok "All terminals launched. OpenCode server daemon still running (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo "unknown"))."
-  log_info "Re-attach later:          zellij list-sessions  →  zellij attach <session-name>"
-  echo ""
-  log_info "New opencode session (any project):"
-  log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
-  log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
-  echo ""
-  log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
-  log_info "Restart daemon:   Re-run this script (kills + restarts)"
-  log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
+  if $DRY_RUN; then
+    log_ok "Dry run complete — no commands executed, no terminals launched."
+    log_info "Run without --dry-run to launch the workspace."
+  else
+    log_ok "All terminals launched. OpenCode server daemon still running (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo "unknown"))."
+    log_info "Re-attach later:          zellij list-sessions  →  zellij attach <session-name>"
+    echo ""
+    log_info "New opencode session (any project):"
+    log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
+    log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
+    echo ""
+    log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
+    log_info "Restart daemon:   Re-run this script (kills + restarts)"
+    log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
+  fi
 }
 
 main "$@"
