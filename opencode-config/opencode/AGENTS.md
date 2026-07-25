@@ -77,6 +77,29 @@ Always set the `workdir` parameter; don't use `cd`
 - `gortex_remember` operation:`"edit_memory"` – Edit an existing memory
 - `gortex_remember` operation:`"rename_memory"` – Rename or delete a memory
 
+#### Memory conventions
+
+**Naming**: `<project>-<area>-<topic>` (e.g. `ronzzdoi-deployment`,
+`lighterauth-api-design`). Short, descriptive, scannable in a list. Avoid
+generic names like `note-1` or `finding`.
+
+**Body structure** — three sections max, plain text:
+```
+Context: one-line scope (repo, feature, decision).
+Content: the finding, decision, or reference. Specific enough that a future
+         agent can act on it without re-reading the source material.
+Rationale: why this decision was made (if applicable).
+```
+
+**Recall-first guard**: Before `gortex_remember operation:"memory"`, always
+`gortex_recall operation:"memories"` with a relevant query first. If a memory
+on the same topic exists, use `operation:"edit_memory"` to update it instead
+of creating a duplicate.
+
+**Update stale memories** when the project evolves — `edit_memory` with the
+same name, new body. If a memory is genuinely obsolete (decision reversed,
+approach abandoned), delete it via `rename_memory` with an empty new name.
+
 ### Documentation
 - `context7_resolve-library-id` + `context7_query-docs` – Search up-to-date library documentation
 
@@ -237,14 +260,22 @@ Headed mode (`headed: true`) sessions are fragile:
 ## Workflow
 
 ### Exploration Before Coding
-Before coding, run Gortex tools in sequence: `gortex_recall` operation:`"memories"` → `gortex_recall` operation:`"notes"` → (`gortex_read` operation:`"symbols"`, `gortex_search` operation:`"symbols"`, `gortex_search` operation:`"text"`, `gortex_read` operation:`"file"`) to understand existing code style, libraries, and patterns.
+Before coding, always start by recalling relevant memories:
+`gortex_recall operation:"memories"`. Then explore the codebase with any
+combination of `gortex_read`, `gortex_search`, or `gortex_relations` as needed
+— the order depends on what you're looking for. The goal is to understand
+existing code style, libraries, and patterns before writing new code.
 
 **Check the tool's own CLI before designing abstractions.** Run `tool --help` and `tool subcommand --help` early. The fastest documentation is often in the terminal — and may reveal primitives (`action new-tab --cwd`) that eliminate entire layers of complexity before you build them.
 
 ### Memory & State
-- Check for existing relevant knowledge: `gortex_recall` operation:`"memories"` → `gortex_recall` operation:`"notes"`
-- After significant decisions or findings, use `gortex_remember` operation:`"memory"` to persist information
-- Use `gortex_recall` operation:`"memories"` to find previous discussions on the topic
+- **Before coding**: `gortex_recall operation:"memories"` → `gortex_remember` if you discover new context worth saving
+- **After a significant finding/decision**: recall first (avoid duplicates), then `gortex_remember` or `edit_memory` to persist
+- **When delegating to a subagent**: recall relevant memories and include them in the task prompt
+- **When revisiting stale info**: don't delete — `edit_memory` to reflect current state
+
+Skip if the information is already in AGENTS.md/README, is trivial (typo fix),
+or is transient (workaround you'll revert tomorrow).
 
 ### Delegation to Subagents
 **How to delegate effectively:**
@@ -254,6 +285,7 @@ Before coding, run Gortex tools in sequence: `gortex_recall` operation:`"memorie
    - Relevant context from your analysis
    - Specific requirements/constraints
    - Expected output format
+   - **Relevant Gortex memories** — `gortex_recall` on the topic first, paste body into prompt so the subagent doesn't start from zero
 
 2. **Invoke the subagent** — Use `task` tool with the prepared prompt:
    ```
