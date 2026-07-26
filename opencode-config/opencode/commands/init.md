@@ -51,6 +51,12 @@ gh repo create "$ORG/$REPO" \
 
 **Gotcha**: `--source` cannot be combined with `--license`. Creating the repo first and then cloning locally is the correct order.
 
+Enable auto-delete of merged PR branches:
+
+```bash
+gh api -X PATCH "repos/$ORG/$REPO" -f delete_branch_on_merge=true
+```
+
 Clone locally:
 
 ```bash
