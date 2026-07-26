@@ -22,6 +22,56 @@ For each issue you propose, prepare:
 
 **Wait for explicit approval before creating anything.**
 
+### 1.5 Phase large issues with sub-issues
+
+After the user approves the proposed issue(s), assess whether any issue represents a large change that would benefit from phasing. A large change typically involves:
+
+- Multiple independent or sequential steps across different subsystems
+- A change that would produce an unwieldy PR (>500 lines changed)
+- Work that could be split into independently reviewable chunks
+- Work spanning multiple days or agents
+
+For each large issue, **propose a sub-issue breakdown** before creating anything:
+
+| Field | How to determine |
+|-------|-----------------|
+| **Parent issue** | The approved high-level issue (this is the original proposal) |
+| **Sub-issues** | Logical phases: each should be independently implementable and testable. Name them clearly (e.g. "Phase 1: Backend API", "Phase 2: Frontend UI") |
+| **Ordering** | Dependencies between sub-issues (which must be done first) |
+
+**Present the breakdown for approval** before creating anything. Use one `question` call.
+
+If the user declines sub-issues (change is small enough), skip to step 2.
+
+### 1.6 Create parent issue first, then sub-issues
+
+Once the breakdown is approved:
+
+1. Create the **parent** issue first (using the normal `gh issue create` flow).
+2. For each sub-issue, create it with its own body (detailing that phase's goal, diff scope, and acceptance criteria).
+3. **Link each sub-issue to its parent** via GraphQL:
+   ```bash
+   # Get node IDs for parent and all sub-issues
+   gh api graphql -f query='
+   query {
+     repository(owner: "'"$ORG"'", name: "'"$REPO"'") {
+       parent: issue(number: PARENT_NUM) { id }
+       child1: issue(number: CHILD1_NUM) { id }
+       child2: issue(number: CHILD2_NUM) { id }
+     }
+   }' --jq '.data.repository'
+
+   # Link each child to parent
+   gh api graphql -f query='
+   mutation {
+     addSubIssue(input: {
+       issueId: "PARENT_NODE_ID",
+       subIssueId: "CHILD_NODE_ID"
+     }) { subIssue { id } }
+   }'
+   ```
+4. Report the full hierarchy (parent + all sub-issues with URLs and dependency order).
+
 ### 2. Ensure labels exist
 
 For each proposed label, check if it exists on the target repo:
