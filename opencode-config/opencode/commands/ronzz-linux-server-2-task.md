@@ -3,7 +3,7 @@ description: Perform any admin task on ronzz-linux-server-2 (general server)
 agent: copilot
 ---
 
-# ronzz-linux-server-2: $1
+# ronzz-linux-server-2
 
 ## SSH access
 
@@ -81,3 +81,5 @@ sudo -u ronzz git -C /opt/ronzzdoi-public-web pull origin main
 sudo -u ronzz HOME=/opt/ronzzdoi-public-web sh -c 'cd /opt/ronzzdoi-public-web && npm ci && npm run build'
 sudo systemctl restart ronzzdoi-web
 ```
+
+# TODO: $1
