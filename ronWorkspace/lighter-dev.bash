@@ -24,10 +24,11 @@
 #     basculer:         basculer-LLM (opencode) | shell | opencode-config-LLM (opencode)
 #                       | shell | opencode-agents (ls) | opencode-commands (ls)
 #     scratch:          nvim tmp.md | nvim lighterbird-1.md | nvim semantika-1.md
-#   WS 5 (desk 4) — 3 terminals:
+#   WS 5 (desk 4) — 4 terminals:
 #     lighterbird:      gitmaster | opencode | shell
 #     semantika:        gitmaster | opencode | opencode (builtin) | shell
 #     ronzzdoi:         gitmaster | opencode | shell
+#     classroomioplus:  gitmaster | opencode | shell
 #   WS 12 (desk 11) — 1 terminal, 3 tabs:
 #     france-en-chiffres: opencode | shell | content
 #
@@ -60,6 +61,7 @@ DIR_AUTISH="$HOME/kodo/autish"
 DIR_FEC="$HOME/kodo/france-en-chiffres"
 DIR_RONZZMARKMAP="$HOME/kodo/ronzz-markmap"
 DIR_RONZZDOI="$HOME/kodo/autish/ronzzdoi"
+DIR_CLASSROOMIOPLUS="$HOME/kodo/classroomioplus"
 
 # ── OpenCode shared server (serve+attach) ───────────────────────────────
 # Instead of starting N independent opencode servers (one per tab), start
@@ -442,21 +444,65 @@ restore_floorp() {
 
 # ── OpenCode daemon ──────────────────────────────────────────────────────
 
-# Start (or restart) the shared `opencode serve` daemon. All Zellij tabs will
-# attach to this single instance, sharing the Bun/Node.js runtime, LLM
-# connections, and MCP infrastructure — instead of each tab spawning its own
-# ~600MB server.
-#
-# Every run kills any existing server first and starts fresh, so the daemon
-# always picks up the latest plugin code.
+# Preemptive cleanup: kill any existing opencode server on our port.
+# Called unconditionally in main() so stale daemons are always freed,
+# even when no workspace item needs opencode this session.
+_cleanup_opencode_daemon() {
+  if $DRY_RUN; then
+    log_info "OpenCode: would stop any existing server on port ${OPCODE_SERVE_PORT} (preemptive cleanup)"
+    return 0
+  fi
+
+  local port_pid
+  port_pid=$(ss -tlnp 2>/dev/null |
+    grep -F ":${OPCODE_SERVE_PORT}" |
+    grep -o 'pid=[0-9][0-9]*' |
+    grep -o '[0-9][0-9]*' ||
+    true)
+  if [[ -z "$port_pid" ]]; then
+    return 0
+  fi
+
+  if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+    log_info "Stopping existing OpenCode server (PID $port_pid) …"
+    # timeout: systemctl --user stop can hang if the unit ignores SIGTERM.
+    timeout 5 systemctl --user stop opencode-serve 2>/dev/null || kill "$port_pid" 2>/dev/null || true
+    local wait_release=10
+    while ((wait_release > 0)); do
+      port_pid=$(ss -tlnp 2>/dev/null |
+        grep -F ":${OPCODE_SERVE_PORT}" |
+        grep -o 'pid=[0-9][0-9]*' |
+        grep -o '[0-9][0-9]*' ||
+        true)
+      [[ -z "$port_pid" ]] && break
+      sleep 1
+      ((wait_release--)) || true
+    done
+    if [[ -n "$port_pid" ]]; then
+      log_warn "Port ${OPCODE_SERVE_PORT} still held after 10s — forcing…"
+      kill -9 "$port_pid" 2>/dev/null || true
+      sleep 1
+    fi
+    rm -f "$OPCODE_DAEMON_PID_FILE"
+  else
+    log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
+    log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
+    # Non-blocking: warn only — start will fail later if we need the port.
+  fi
+}
+
+# Start the shared `opencode serve` daemon.  Port should be clean after
+# _cleanup_opencode_daemon ran, but we verify defensively.
 launch_opencode_daemon() {
   if $DRY_RUN; then
     log_info "OpenCode: would start server on port ${OPCODE_SERVE_PORT} via systemd-run"
     return 0
   fi
 
-  # ── Kill any existing opencode server on our port ────────────────────
-  # Every rerun starts fresh so the server picks up latest plugin code.
+  need_cmd "opencode"
+
+  # Verify port is free (cleanup should have handled it, but defend against
+  # racy re-occupation or a non-opencode holder).
   local port_pid
   port_pid=$(ss -tlnp 2>/dev/null |
     grep -F ":${OPCODE_SERVE_PORT}" |
@@ -465,51 +511,26 @@ launch_opencode_daemon() {
     true)
   if [[ -n "$port_pid" ]]; then
     if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
-      log_info "Stopping existing OpenCode server (PID $port_pid) …"
-      # Clean stop via systemd unit (if managed by us) or direct kill
-      systemctl --user stop opencode-serve 2>/dev/null || kill "$port_pid" 2>/dev/null || true
-      # Wait for port to be released
-      local wait_release=10
-      while ((wait_release > 0)); do
-        port_pid=$(ss -tlnp 2>/dev/null |
-          grep -F ":${OPCODE_SERVE_PORT}" |
-          grep -o 'pid=[0-9][0-9]*' |
-          grep -o '[0-9][0-9]*' ||
-          true)
-        [[ -z "$port_pid" ]] && break
-        sleep 1
-        ((wait_release--)) || true
-      done
-      if [[ -n "$port_pid" ]]; then
-        log_warn "Port ${OPCODE_SERVE_PORT} still held after 10s — forcing…"
-        kill -9 "$port_pid" 2>/dev/null || true
-        sleep 1
-      fi
+      log_warn "Port ${OPCODE_SERVE_PORT} still occupied by opencode (PID $port_pid) — force killing"
+      kill -9 "$port_pid" 2>/dev/null || true
+      sleep 1
       rm -f "$OPCODE_DAEMON_PID_FILE"
     else
-      log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
-      log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
-      log_warn "  Cannot start opencode daemon until that process releases the port."
+      log_err "Port ${OPCODE_SERVE_PORT} is held by non-opencode process (PID $port_pid)"
+      log_err "  Cannot start opencode daemon."
       return 1
     fi
   fi
 
   # ── Start daemon ────────────────────────────────────────────────────
   log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
-  # Use systemd-run instead of setsid so the process stays in the user
-  # session scope and is killed on logout (no orphan-to-PID-1 problem).
-  # StandardOutput/Error go to the log file for debugging.
   systemd-run --user --unit=opencode-serve --collect \
     --property="StandardOutput=file:${OPCODE_DAEMON_LOG}" \
     --property="StandardError=file:${OPCODE_DAEMON_LOG}" \
     --same-dir \
     opencode serve --port "$OPCODE_SERVE_PORT"
 
-  # Poll ss until the port is bound (ground truth).  Port binding is more
-  # reliable than HTTP health checks: the kernel binds the port very early
-  # in initialization, while the health endpoint may be delayed by plugin
-  # loading, provider connections, or other async initialization.
-  # Extract the real PID from ss output.
+  # Poll ss until the port is bound.
   local timeout=$OPCODE_DAEMON_TIMEOUT
   while ((timeout > 0)); do
     port_pid=$(ss -tlnp 2>/dev/null |
@@ -523,7 +544,6 @@ launch_opencode_daemon() {
         log_ok "OpenCode server daemon ready (PID $port_pid)"
         return 0
       fi
-      # Port bound by non-opencode — don't retry, it won't resolve itself
       log_err "Port ${OPCODE_SERVE_PORT} claimed by non-opencode process (PID $port_pid)"
       log_err "  Check: ${OPCODE_DAEMON_LOG}"
       return 1
@@ -535,6 +555,201 @@ launch_opencode_daemon() {
   log_err "OpenCode server daemon did not bind port ${OPCODE_SERVE_PORT} within ${OPCODE_DAEMON_TIMEOUT}s"
   log_err "  Check: ${OPCODE_DAEMON_LOG}"
   return 1
+}
+
+# ── Workspace item registry ──────────────────────────────────────────
+# Add new items with _register_item, then implement _run_<id>().
+# Array order = menu order.  Metadata is kept in sync automatically.
+# Numbering: item N gets menu number N+1.  New items appended to the
+# end get the next number.  Inserting mid-array renumbers everything
+# after the insertion point — update menu references accordingly.
+
+declare -a _WS_IDS=()          # item IDs (parallel arrays, same index)
+declare -a _WS_LABELS=()       # display labels
+declare -a _WS_NEEDS_OPENCODE=()  # "true" / "false"
+
+_register_item() {
+  _WS_IDS+=("$1")
+  _WS_LABELS+=("$2")
+  _WS_NEEDS_OPENCODE+=("$3")
+}
+
+# ── Registrations ───────────────────────────────────────────────────
+# Usage: _register_item "<id>" "<menu label>" <needs_opencode>
+_register_item "ws_floorp"            "pre — Floorp browser (session restore)"         false
+_register_item "ws1_config"           "WS1 — lighter-config (8 tabs)"                    false
+_register_item "ws2_markmap"          "WS2 — ronzz-markmap (3 tabs)"                     false
+_register_item "ws3_autish"           "WS3 — autish repl (3 tabs)"                       false
+_register_item "ws3_desktop_plus"     "WS3 — desktop-plus (GUI)"                         false
+_register_item "ws4_basculer"         "WS4 — basculer (6 tabs)"                           true
+_register_item "ws4_notes"            "WS4 — notes/scratch (3 tabs)"                     false
+_register_item "ws5_lbgm"             "WS5 — lighterbird (gm + oc + shell)"               true
+_register_item "ws5_smgm"             "WS5 — semantika (gm + 2x oc + shell)"              true
+_register_item "ws5_rzdoi"            "WS5 — ronzzdoi (gm + oc + shell)"                  true
+_register_item "ws5_classroomioplus"  "WS5 — classroomioplus (gm + oc + shell)"           true
+_register_item "ws12_fec"             "WS12 — france-en-chiffres (3 tabs)"                true
+
+SELECTED_ITEMS="__ALL__"
+
+# Returns the display label for a workspace item ID.
+_ws_label() {
+  local id="$1" i
+  for ((i=0; i<${#_WS_IDS[@]}; i++)); do
+    [[ "${_WS_IDS[i]}" == "$id" ]] && { echo "${_WS_LABELS[i]}"; return 0; }
+  done
+  echo "UNKNOWN:${id}"
+  return 1
+}
+
+# Show the interactive selection menu.  User enters space-separated numbers
+# of items to START.  Empty input (just Enter) launches everything.
+_prompt_selection() {
+  echo ""
+  echo "================================================================="
+  echo "  Lighter Development Workspace — interactive launch"
+  echo "================================================================="
+  echo ""
+  local i label
+  for ((i=0; i<${#_WS_IDS[@]}; i++)); do
+    label="$(_ws_label "${_WS_IDS[i]}")"
+    printf "  %2d.  %s\n" $((i+1)) "$label"
+  done
+  echo ""
+  echo "  Enter space-separated numbers to launch ONLY those items."
+  read -r -p "  Press Enter to launch ALL: " user_input
+  echo ""
+  if [[ -z "$user_input" ]]; then
+    SELECTED_ITEMS="__ALL__"
+  else
+    SELECTED_ITEMS="$user_input"
+  fi
+}
+
+# Check if a given item number (1-indexed) was selected by the user.
+should_launch() {
+  local num="$1"
+  [[ "$SELECTED_ITEMS" == "__ALL__" ]] && return 0
+  local n
+  for n in $SELECTED_ITEMS; do
+    [[ "$n" == "$num" ]] && return 0
+  done
+  return 1
+}
+
+# Dispatch to _run_<id>() by dynamic function name.
+# No case-statement to maintain — implement _run_<id>() and it works.
+_run_workspace_item() {
+  local id="$1"
+  if declare -F "_run_${id}" &>/dev/null; then
+    "_run_${id}"
+  else
+    log_err "No _run_${id} function defined for workspace item «${id}»"
+  fi
+}
+
+# ── Workspace item implementations ──────────────────────────────────
+# Each _run_<id> function contains the original launch_term / GUI code.
+
+_run_ws1_config() {
+  log_info "=== Workspace 1 — lighter-config ==="
+  launch_term "$DESK_WS1" "lighter-config" \
+    "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
+    "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
+    "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \
+    "fe|${DIR_LIGHTERBIRD}/web|" \
+    "sh|${DIR_LIGHTERBIRD}|" \
+    "semantika-be|${DIR_SEMANTIKA}|git pull" \
+    "fe|${DIR_SEMANTIKA}/web|" \
+    "sh|${DIR_SEMANTIKA}|"
+}
+
+_run_ws2_markmap() {
+  log_info "=== Workspace 2 — ronzz-markmap ==="
+  launch_term "$DESK_WS2" "ronzz-markmap" \
+    "shell|${DIR_RONZZMARKMAP}|" \
+    "email-write|${DIR_RONZZMARKMAP}/email|ls" \
+    "diary-write|${DIR_RONZZMARKMAP}/diary|ls"
+}
+
+_run_ws3_autish() {
+  log_info "=== Workspace 3 — autish repl ==="
+  launch_term "$DESK_WS3" "autish" \
+    "A-sistemo-repl|${DIR_AUTISH}|${CMD_A_REPL_SISTEMO}" \
+    "autish-sh|${DIR_AUTISH}|" \
+    "A-semantika-repl|${DIR_AUTISH}|${CMD_A_REPL_SEMANTIKA}"
+}
+
+_run_ws3_desktop_plus() {
+  if $DRY_RUN; then
+    log_info "GUI: desktop-plus (detached)"
+  else
+    log_info "Launching desktop-plus GUI …"
+    setsid desktop-plus >/dev/null 2>&1 &
+  fi
+}
+
+_run_ws4_basculer() {
+  log_info "=== Workspace 4 — basculer ==="
+  launch_term "$DESK_WS4" "basculer" \
+    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE} --dir ${DIR_BASCULER}" \
+    "sh|${DIR_BASCULER}|" \
+    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE} --dir ${DIR_BASCULER}/opencode-config" \
+    "sh|${DIR_BASCULER}/opencode-config|" \
+    "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
+    "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
+}
+
+_run_ws4_notes() {
+  log_info "=== Workspace 4 — scratch notes ==="
+  launch_term "$DESK_WS4" "notes" \
+    "tmp|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/tmp.md" \
+    "lighterbird|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/lighterbird/lighterbird-1.md" \
+    "semantika|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/semantika/semantika-1.md"
+}
+
+_run_ws5_lbgm() {
+  log_info "=== Workspace 5 — lighterbird ==="
+  launch_term "$DESK_WS5" "lbgm" \
+    "gm|${DIR_LIGHTERBIRD}|${CMD_MASTER} --dir ${DIR_LIGHTERBIRD}" \
+    "oc|${DIR_LIGHTERBIRD}|${CMD_OPENCODE} --dir ${DIR_LIGHTERBIRD}" \
+    "sh|${DIR_LIGHTERBIRD}|"
+}
+
+_run_ws5_smgm() {
+  log_info "=== Workspace 5 — semantika ==="
+  launch_term "$DESK_WS5" "smgm" \
+    "gm|${DIR_SEMANTIKA}|${CMD_MASTER} --dir ${DIR_SEMANTIKA}" \
+    "oc|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
+    "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
+    "sh|${DIR_SEMANTIKA}|"
+}
+
+_run_ws5_rzdoi() {
+  log_info "=== Workspace 5 — ronzzdoi ==="
+  launch_term "$DESK_WS5" "rzdoi" \
+    "gm|${DIR_RONZZDOI}|${CMD_MASTER} --dir ${DIR_RONZZDOI}" \
+    "oc|${DIR_RONZZDOI}|${CMD_OPENCODE} --dir ${DIR_RONZZDOI}" \
+    "sh|${DIR_RONZZDOI}|"
+}
+
+_run_ws5_classroomioplus() {
+  log_info "=== Workspace 5 — classroomioplus ==="
+  launch_term "$DESK_WS5" "classroomioplus" \
+    "gm|${DIR_CLASSROOMIOPLUS}|${CMD_MASTER} --dir ${DIR_CLASSROOMIOPLUS}" \
+    "oc|${DIR_CLASSROOMIOPLUS}|${CMD_OPENCODE} --dir ${DIR_CLASSROOMIOPLUS}" \
+    "sh|${DIR_CLASSROOMIOPLUS}|"
+}
+
+_run_ws12_fec() {
+  log_info "=== Workspace 12 — france-en-chiffres ==="
+  launch_term "$DESK_WS12" "fec" \
+    "fec-LLM|${DIR_FEC}|${CMD_OPENCODE} --dir ${DIR_FEC}" \
+    "sh|${DIR_FEC}|" \
+    "content|${DIR_FEC}/src/content|"
+}
+
+_run_ws_floorp() {
+  restore_floorp
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────
@@ -553,9 +768,10 @@ main() {
   esac
 
   # ── Dependency checks ──────────────────────────────────────────────
+  # NOTE: opencode is checked inside launch_opencode_daemon — it's only
+  # required when an opencode workspace item is selected.
   need_cmd "alacritty"
   need_cmd "zellij"
-  need_cmd "opencode"
   need_cmd "curl"
 
   if ! $HAS_WMCTRL; then
@@ -574,106 +790,84 @@ main() {
   need_dir "$DIR_FEC"
   need_dir "$DIR_RONZZMARKMAP"
   need_dir "$DIR_RONZZDOI"
+  need_dir "$DIR_CLASSROOMIOPLUS"
 
-  # ── OpenCode server daemon (before terminals, must be ready first) ──
-  echo ""
-  launch_opencode_daemon || exit 1
-
-  # ── Floorp session restore (before terminals take focus) ─────────────
-  echo ""
-  restore_floorp || true
-
-  echo ""
-  # Workspace configs: tab name|working directory (cwd)|init shell cmd|
-  # ── Workspace 1: lighter-config + lighterbird + semantika ──────────
-  log_info "=== Workspace 1 ==="
-  launch_term "$DESK_WS1" "lighter-config" \
-    "lighter-config|${DIR_LIGHTER_CONFIG}|nvim README.md" \
-    "lighter-config-2|${DIR_LIGHTER_CONFIG}|" \
-    "lighterbird-be|${DIR_LIGHTERBIRD}|git pull" \
-    "fe|${DIR_LIGHTERBIRD}/web|" \
-    "sh|${DIR_LIGHTERBIRD}|" \
-    "semantika-be|${DIR_SEMANTIKA}|git pull" \
-    "fe|${DIR_SEMANTIKA}/web|" \
-    "sh|${DIR_SEMANTIKA}|"
-
-  # ── Workspace 2: ronzz-markmap ──────────────────────────────────────
-  log_info "=== Workspace 2 ==="
-  launch_term "$DESK_WS2" "ronzz-markmap" \
-    "shell|${DIR_RONZZMARKMAP}|" \
-    "email-write|${DIR_RONZZMARKMAP}/email|ls" \
-    "diary-write|${DIR_RONZZMARKMAP}/diary|ls"
-
-  # ── Workspace 3: autish repl ───────────────────────────────────────
-  log_info "=== Workspace 3 ==="
-  launch_term "$DESK_WS3" "autish" \
-    "A-sistemo-repl|${DIR_AUTISH}|${CMD_A_REPL_SISTEMO}" \
-    "autish-sh|${DIR_AUTISH}|" \
-    "A-semantika-repl|${DIR_AUTISH}|${CMD_A_REPL_SEMANTIKA}"
-
-  # Launch desktop-plus GUI (detached, not inside a terminal)
-  if $DRY_RUN; then
-    log_info "GUI: desktop-plus (detached)"
-  else
-    log_info "Launching desktop-plus GUI …"
-    setsid desktop-plus >/dev/null 2>&1 &
+  # ── Interactive selection ─────────────────────────────────────────
+  # Must happen BEFORE daemon/floorp so we know what to launch.
+  # In dry-run mode skip the prompt and show everything.
+  if ! $DRY_RUN; then
+    _prompt_selection
   fi
 
-  # ── Workspace 4: opencode-config + scratch ─────────────────────────
-  log_info "=== Workspace 4 ==="
-  launch_term "$DESK_WS4" "basculer" \
-    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE} --dir ${DIR_BASCULER}" \
-    "sh|${DIR_BASCULER}|" \
-    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE} --dir ${DIR_BASCULER}/opencode-config" \
-    "sh|${DIR_BASCULER}/opencode-config|" \
-    "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
-    "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
+  # ── Preemptive cleanup: kill any stale opencode daemon ─────────────
+  # Always runs (even when no opencode items are selected) so stale
+  # ~600MB servers are freed before terminals take focus.
+  echo ""
+  _cleanup_opencode_daemon
 
-  launch_term "$DESK_WS4" "notes" \
-    "tmp|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/tmp.md" \
-    "lighterbird|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/lighterbird/lighterbird-1.md" \
-    "semantika|${DIR_SCRATCH}|nvim ${DIR_SCRATCH}/semantika/semantika-1.md"
+  # ── Floorp session restore (before terminals take focus) ─────────────
+  # Floorp is item at index 0 (menu number 1).
+  echo ""
+  if $DRY_RUN || should_launch 1; then
+    restore_floorp || true
+  else
+    log_info "Skipping Floorp restore (not selected)"
+  fi
 
-  # ── Workspace 5: lighterbird + semantika master ────────────────────
-  log_info "=== Workspace 5 ==="
-  launch_term "$DESK_WS5" "lbgm" \
-    "gm|${DIR_LIGHTERBIRD}|${CMD_MASTER} --dir ${DIR_LIGHTERBIRD}" \
-    "oc|${DIR_LIGHTERBIRD}|${CMD_OPENCODE} --dir ${DIR_LIGHTERBIRD}" \
-    "sh|${DIR_LIGHTERBIRD}|"
+  # ── OpenCode server daemon (only if needed) ───────────────────────
+  # Check whether any selected workspace item needs opencode.  If none
+  # do, skip the daemon entirely (saves ~600 MB + startup time).
+  local _needs_opencode=false
+  local _oc_idx
+  for ((_oc_idx=0; _oc_idx<${#_WS_IDS[@]}; _oc_idx++)); do
+    if $DRY_RUN || should_launch $((_oc_idx + 1)); then
+      if [[ "${_WS_NEEDS_OPENCODE[_oc_idx]}" == "true" ]]; then
+        _needs_opencode=true
+        break
+      fi
+    fi
+  done
+  if $_needs_opencode; then
+    echo ""
+    launch_opencode_daemon || exit 1
+  elif $DRY_RUN; then
+    echo ""
+    log_info "OpenCode daemon not needed (no opencode items selected)"
+  fi
 
-  launch_term "$DESK_WS5" "smgm" \
-    "gm|${DIR_SEMANTIKA}|${CMD_MASTER} --dir ${DIR_SEMANTIKA}" \
-    "oc|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
-    "builtin|${DIR_SEMANTIKA}|${CMD_OPENCODE} --dir ${DIR_SEMANTIKA}" \
-    "sh|${DIR_SEMANTIKA}|"
+  echo ""
 
-  launch_term "$DESK_WS5" "rzdoi" \
-    "gm|${DIR_RONZZDOI}|${CMD_MASTER} --dir ${DIR_RONZZDOI}" \
-    "oc|${DIR_RONZZDOI}|${CMD_OPENCODE} --dir ${DIR_RONZZDOI}" \
-    "sh|${DIR_RONZZDOI}|"
-
-  # ── Workspace 12: france-en-chiffres ──────────────────────────────
-  log_info "=== Workspace 12 ==="
-  launch_term "$DESK_WS12" "fec" \
-    "fec-LLM|${DIR_FEC}|${CMD_OPENCODE} --dir ${DIR_FEC}" \
-    "sh|${DIR_FEC}|" \
-    "content|${DIR_FEC}/src/content|"
+  # ── Launch selected workspace items ──────────────────────────────
+  # Floorp (index 0) was handled early; skip it in the loop.
+  local _item_idx _item_id
+  for ((_item_idx=1; _item_idx<${#_WS_IDS[@]}; _item_idx++)); do
+    _item_id="${_WS_IDS[_item_idx]}"
+    if $DRY_RUN || should_launch $((_item_idx + 1)); then
+      _run_workspace_item "$_item_id"
+    else
+      log_info "Skipping «${_item_id}» (not selected)"
+    fi
+  done
 
   echo ""
   if $DRY_RUN; then
     log_ok "Dry run complete — no commands executed, no terminals launched."
     log_info "Run without --dry-run to launch the workspace."
   else
-    log_ok "All terminals launched. OpenCode server daemon still running (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo "unknown"))."
-    log_info "Re-attach later:          zellij list-sessions  →  zellij attach <session-name>"
-    echo ""
-    log_info "New opencode session (any project):"
-    log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
-    log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
-    echo ""
-    log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
-    log_info "Restart daemon:   Re-run this script (kills + restarts)"
-    log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
+    if $_needs_opencode; then
+      log_ok "All terminals launched. OpenCode server daemon still running (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo "unknown"))."
+      log_info "Re-attach later:          zellij list-sessions  →  zellij attach <session-name>"
+      echo ""
+      log_info "New opencode session (any project):"
+      log_info "  opencode attach ${OPCODE_SERVE_URL} --dir /path/to/project"
+      log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
+      echo ""
+      log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
+      log_info "Restart daemon:   Re-run this script (kills + restarts)"
+      log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
+    else
+      log_ok "All selected items launched (opencode daemon was not started)."
+    fi
   fi
 }
 

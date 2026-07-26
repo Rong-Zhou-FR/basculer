@@ -7,11 +7,17 @@
 #
 # Covers:
 #   - --help exits 0 and shows documentation
-#   - --dry-run exits 0 and shows preview
+#   - --dry-run exits 0 and shows preview (works without opencode on PATH)
 #   - launch_term is defined with correct signature
 #   - launch_term uses delete-wait loop (poll list-sessions after delete-session)
 #   - launch_term filters EXITED sessions from readiness check
 #   - launch_term probes action-readiness via query-tab-names
+#   - Workspace registry: WORKSPACE_ITEMS, _ws_label, _prompt_selection, should_launch
+#   - _run_* functions for each workspace item
+#   - Floorp is a workspace item (ws_floorp), launched early if selected
+#   - OpenCode daemon starts only when selected items need opencode
+#   - _item_needs_opencode correctly identifies opencode items
+#   - Every CMD_OPENCODE / CMD_MASTER usage includes --dir
 #   - No stale gen_layout / LAYOUT_DIR references remain
 #
 
@@ -74,27 +80,18 @@ assert_contains "$help_out" "--dry-run" "mentions --dry-run flag"
 echo ""
 
 # ── Test: --dry-run ──────────────────────────────────────────────────
+# NOTE: main() no longer has an unconditional need_cmd "opencode" — it
+# is only checked inside launch_opencode_daemon which is guarded by
+# DRY_RUN.  So --dry-run works even without opencode on PATH.
 
 echo "=== --dry-run ==="
 dry_out=$(bash "$SCRIPT" --dry-run 2>&1)
 assert_eq "0" "$?" "--dry-run exit code"
-assert_contains "$dry_out" "Would launch" "shows preview header"
+assert_contains "$dry_out" "Floorp" "mentions Floorp browser"
 assert_contains "$dry_out" "lighter-config" "mentions workspace tabs"
 assert_contains "$dry_out" "nvim README.md" "shows commands"
 assert_contains "$dry_out" "opencode" "shows all workspaces"
-
-echo ""
-
-# ── Test: --dry-run shows opencode serve+attach mode ─────────────────
-
-echo "=== dry-run: opencode serve+attach ==="
-dry_out=$(bash "$SCRIPT" --dry-run 2>&1)
-assert_contains "$dry_out" "share one server" \
-    "--dry-run mentions share one server"
-assert_contains "$dry_out" "opencode (attach)" \
-    "--dry-run shows attach mode for regular opencode tabs"
-assert_contains "$dry_out" "gitmaster (mini+attach)" \
-    "--dry-run shows mini+attach for gitmaster tabs"
+assert_contains "$dry_out" "classroomioplus" "mentions WS5 classroomioplus item"
 
 echo ""
 
@@ -192,14 +189,20 @@ assert_not_contains "$(declare -f launch_opencode_daemon)" "/global/health" \
     "launch_opencode_daemon no longer polls HTTP health"
 assert_not_contains "$(declare -f launch_opencode_daemon)" "curl -sf" \
     "launch_opencode_daemon no longer uses curl for health check"
-assert_contains "$(declare -f launch_opencode_daemon)" "setsid" \
-    "launch_opencode_daemon uses setsid for process isolation"
+assert_contains "$(declare -f launch_opencode_daemon)" "systemd-run" \
+    "launch_opencode_daemon uses systemd-run for process lifecycle"
 assert_contains "$(declare -f launch_opencode_daemon)" "PID_FILE" \
     "launch_opencode_daemon stores PID in PID_FILE"
-assert_contains "$(declare -f launch_opencode_daemon)" "already running" \
-    "launch_opencode_daemon checks if already running"
 assert_contains "$(declare -f launch_opencode_daemon)" "OPCODE_DAEMON_TIMEOUT" \
     "launch_opencode_daemon uses OPCODE_DAEMON_TIMEOUT for polling"
+
+# _cleanup_opencode_daemon (extracted from launch_opencode_daemon)
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "Stopping existing" \
+    "_cleanup_opencode_daemon stops existing server before restart"
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "ss -tlnp" \
+    "_cleanup_opencode_daemon polls ss for port"
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "forcing" \
+    "_cleanup_opencode_daemon force-kills after timeout"
 
 # CMD_OPENCODE uses attach mode
 assert_contains "${CMD_OPENCODE}" "opencode attach" \
@@ -236,9 +239,13 @@ master_with_dir=$(grep -c '\${CMD_MASTER} --dir' "$SCRIPT" 2>/dev/null || true)
 assert_eq "$master_usage" "$master_with_dir" \
     "Every CMD_MASTER usage includes --dir ($master_usage instances)"
 
-# Main should call launch_opencode_daemon
+# Main should call launch_opencode_daemon (conditionally)
 assert_contains "$(declare -f main)" "launch_opencode_daemon" \
     "main calls launch_opencode_daemon"
+
+# Main calls preemptive cleanup unconditionally
+assert_contains "$(declare -f main)" "_cleanup_opencode_daemon" \
+    "main calls _cleanup_opencode_daemon unconditionally"
 
 # Final output includes new-session template
 assert_contains "$(declare -f main)" "New opencode session" \
@@ -247,6 +254,97 @@ assert_contains "$(declare -f main)" "New opencode session" \
 # Final output includes daemon kill command
 assert_contains "$(declare -f main)" "Kill daemon" \
     "main prints daemon kill instructions"
+
+# ── Test: workspace registry ────────────────────────────────────────────
+
+echo "=== workspace registry ==="
+
+# _WS_IDS should have 12 entries (floorp + 11 workspace terminals/GUIs)
+assert_eq "12" "${#_WS_IDS[@]}" \
+    "_WS_IDS has 12 entries"
+
+# _WS_NEEDS_OPENCODE should be same length (parallel array)
+assert_eq "${#_WS_IDS[@]}" "${#_WS_NEEDS_OPENCODE[@]}" \
+    "_WS_NEEDS_OPENCODE is parallel to _WS_IDS"
+
+# Every _WS_IDS entry has a label via _ws_label
+_ws_test_all_labeled=true
+for ((_ws_test_i=0; _ws_test_i<${#_WS_IDS[@]}; _ws_test_i++)); do
+    _ws_test_label="$(_ws_label "${_WS_IDS[_ws_test_i]}")"
+    if [[ "$_ws_test_label" == UNKNOWN:* ]]; then
+        _ws_test_all_labeled=false
+        echo "  MISSING LABEL: ${_WS_IDS[_ws_test_i]}" >&2
+    fi
+done
+assert_eq "true" "$_ws_test_all_labeled" \
+    "Every _WS_IDS entry has a _ws_label"
+
+# _WS_IDS includes classroomioplus and floorp
+assert_contains "${_WS_IDS[*]}" "ws5_classroomioplus" \
+    "_WS_IDS includes ws5_classroomioplus"
+assert_contains "${_WS_IDS[*]}" "ws_floorp" \
+    "_WS_IDS includes ws_floorp"
+
+# _WS_NEEDS_OPENCODE metadata is correct (check by iterating)
+_oc_all_correct=true
+for ((_ws_test_i=0; _ws_test_i<${#_WS_IDS[@]}; _ws_test_i++)); do
+    _ws_test_id="${_WS_IDS[_ws_test_i]}"
+    _ws_test_meta="${_WS_NEEDS_OPENCODE[_ws_test_i]}"
+    case "$_ws_test_id" in
+        ws4_basculer|ws5_lbgm|ws5_smgm|ws5_rzdoi|ws5_classroomioplus|ws12_fec)
+            [[ "$_ws_test_meta" == "true" ]] || _oc_all_correct=false ;;
+        *)
+            [[ "$_ws_test_meta" == "false" ]] || _oc_all_correct=false ;;
+    esac
+done
+assert_eq "true" "$_oc_all_correct" \
+    "_WS_NEEDS_OPENCODE metadata is correct for all items"
+
+# _run_ws5_classroomioplus defined and uses CMD_MASTER + CMD_OPENCODE
+assert_contains "$(declare -f _run_ws5_classroomioplus)" "CMD_MASTER" \
+    "_run_ws5_classroomioplus uses CMD_MASTER for gitmaster tab"
+assert_contains "$(declare -f _run_ws5_classroomioplus)" "CMD_OPENCODE" \
+    "_run_ws5_classroomioplus uses CMD_OPENCODE for opencode tab"
+assert_contains "$(declare -f _run_ws5_classroomioplus)" "DIR_CLASSROOMIOPLUS" \
+    "_run_ws5_classroomioplus references DIR_CLASSROOMIOPLUS"
+
+# _run_ws_floorp calls restore_floorp
+assert_contains "$(declare -f _run_ws_floorp)" "restore_floorp" \
+    "_run_ws_floorp calls restore_floorp"
+
+# _run_workspace_item uses dynamic dispatch (no case statement)
+assert_contains "$(declare -f _run_workspace_item)" '"_run_${id}"' \
+    "_run_workspace_item uses dynamic dispatch"
+assert_not_contains "$(declare -f _run_workspace_item)" "_run_ws_floorp" \
+    "_run_workspace_item no longer hardcodes function names"
+
+# Main has conditional daemon logic
+assert_contains "$(declare -f main)" "_needs_opencode" \
+    "main checks _needs_opencode before launching daemon"
+assert_contains "$(declare -f main)" 'should_launch 1' \
+    "main checks should_launch 1 before restoring floorp"
+assert_contains "$(declare -f main)" '_WS_NEEDS_OPENCODE' \
+    "main reads _WS_NEEDS_OPENCODE metadata"
+
+# should_launch works
+SELECTED_ITEMS="__ALL__"
+_ws_exit=0
+should_launch 1 || _ws_exit=$?
+assert_eq "0" "$_ws_exit" \
+    "should_launch returns 0 (true) when SELECTED_ITEMS=__ALL__"
+SELECTED_ITEMS="2 4 6"
+_ws_exit=0
+should_launch 2 || _ws_exit=$?
+assert_eq "0" "$_ws_exit" \
+    "should_launch returns 0 for selected item"
+_ws_exit=0
+should_launch 3 || _ws_exit=$?
+assert_eq "1" "$_ws_exit" \
+    "should_launch returns 1 for unselected item"
+
+# _prompt_selection function exists (tested structurally only; interactive use via main)
+assert_contains "$(declare -f _prompt_selection)" "read -r" \
+    "_prompt_selection uses read for interactive input"
 
 echo ""
 
