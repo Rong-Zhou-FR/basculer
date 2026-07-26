@@ -95,6 +95,10 @@ Once architecture is approved:
 
 1. **Scaffold** the directory structure and files as agreed
    - Create the matching `.gitignore` — concise and project-specific
+       - **DO NOT ignore**: 
+         - `.opencode/`: agents, commands, skills, local plugins, and project-level config live here and are worth sharing across clones.
+       - **DO ignore**: 
+         - `**/worktree.json*` — auto-generated artifact from the `opencode-worktree-enhanced` plugin
 2. **Create AGENTS.md files**
    - Fetch templates:
      - [Root `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-root-template.md)

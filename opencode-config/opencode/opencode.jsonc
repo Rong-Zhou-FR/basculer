@@ -139,7 +139,14 @@
       "rm -fr*": "ask",                    // same, flag order swapped
       "pkill*": "ask",                     // kills processes by name/pattern — inherently imprecise
       "killall*": "ask",                   // same, different tool
-      "kill -9*": "ask"                    // SIGKILL by PID — can't be caught, data-loss risk
+      "kill -9*": "ask",                   // SIGKILL by PID — can't be caught, data-loss risk
+      // Allow rm on /tmp/ without prompting (last-match-wins after the broad rm rules above)
+      "rm -rf /tmp/*": "allow",
+      "rm -rf /tmp/**": "allow",
+      "rm -fr /tmp/*": "allow",
+      "rm -fr /tmp/**": "allow",
+      "rm -f /tmp/*": "allow",
+      "rm -f /tmp/**": "allow"
     },
     "external_directory": {
       "*": "ask",
