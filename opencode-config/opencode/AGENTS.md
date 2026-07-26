@@ -68,6 +68,19 @@ Use built-in tools:
 - `glob` – Find files by name pattern
 - `gortex_edit` operation:`"file"` – Gortex-powered file edits (for symbol-aware operations)
 
+**Prefer targeted `edit` over full-file `write` when modifying files that export symbols.**
+Full-file `write` replaces the entire content, which can silently drop exports, types, or
+other functions defined outside your edit window. When you need to change parameter
+signatures or content of a large exported function, use `edit` on the specific sections,
+or use `gortex_edit`/symbol-aware operations. This avoids accidentally losing sibling
+exports that you didn't intend to touch.
+
+**For cross-cutting changes touching 20+ files, prefer scripted refactors over manual edits.**
+Use `rg` to identify all affected locations, read the exact lines, then apply changes
+consistently. For mechanical changes (renames, import path updates, env var removals),
+consider a codemod (`sed` with careful patterns, or an automated refactor) to avoid
+whitespace mismatches and inconsistent application.
+
 Always set the `workdir` parameter; don't use `cd`
 
 ### Memory (Gortex)
@@ -148,9 +161,17 @@ Use gortex when modifying code definitions:
 - **Worktree checklist** — Git worktrees do NOT share `node_modules` or
   `.venv` with the original repo. When entering a worktree, run these checks:
   ```bash
-  ls -la node_modules/          # empty? → run npm install or relink
+  ls -la node_modules/          # empty? → run pnpm install or relink
   python -c "import sys; print(sys.executable)"   # prints parent .venv?
   ```
+  **pnpm in pnpm monorepos**: A symlinked `node_modules` from the parent repo
+  does NOT work — pnpm's virtual store structure breaks. Always run
+  `pnpm install --frozen-lockfile` in the worktree before any build step
+  **Set PATH explicitly**: The worktree shell may not have the repo's required
+  Node version on PATH. Run `. ~/.nvm/nvm.sh && nvm use` or set
+  `export PATH="$HOME/.nvm/versions/node/v20.19.3/bin:$PATH"` before any
+  pnpm/node command.
+
   **Test invocation**: Always use the **parent checkout's** `python -m pytest`,
   not bare `pytest`, `uv run pytest`, or any worktree-local Python:
   ```bash
@@ -367,7 +388,8 @@ on cleanup procedures.
 ### Git Conventions
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
 - Mention relevant GitHub issues (`#N`) in commit messages
-- Don't mix unrelated changes in one commit
+- **One logical concern per commit.** If a refactor touches the same files as a feature, split into separate commits. Merging them makes review harder.
+- **Build before commit, not after.** Run `pnpm --filter <package> build` (or equivalent) on touched packages before `git commit`. The pre-commit hook only checks formatting, not compilation. A build failure caught after pushing wastes a round-trip.
 
 ### Worktree & Branch Cleanup
 - **Delete worktree branches immediately after the PR is merged** — delaying even one
