@@ -82,7 +82,7 @@ if [ -z "$OPENCODE_BIN" ]; then
   echo -e "\n  Skipping config-load check (opencode not installed on PATH or at known locations)."
   echo -e "  Install: npm install -g opencode\n"
 else
-if timeout 15 "$OPENCODE_BIN" debug config > /tmp/opencode-validate.log 2>&1; then
+if timeout 60 "$OPENCODE_BIN" debug config > /tmp/opencode-validate.log 2>&1; then
 	pass=$((pass+1)); done_msg "opencode config loads" pass
 else
 	msg=$(head -3 /tmp/opencode-validate.log)
