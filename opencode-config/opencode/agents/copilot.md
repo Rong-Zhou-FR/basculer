@@ -5,8 +5,8 @@ permission:
   doom_loop: ask
   read:
     "*": allow
-    "*.env": ask
-    "*.env.*": ask
+    "*.env": allow
+    "*.env.*": allow
     "*.env.example": allow
   edit: allow
   write: allow
