@@ -37,6 +37,4 @@ Debug $1
    - After tests pass, update the github issue created in step 2 with the fix
      summary (what changed, which files, why).
 
-6. User simulation testing (follow AGENTS.md conventions)
-
-7. Commit, push, create PR, and merge to main
+6. Commit, push, create PR, and merge to main
