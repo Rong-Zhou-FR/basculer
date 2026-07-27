@@ -5,11 +5,12 @@ agent: copilot
 
 Follow AGENTS.md conventions.
 
-- Use git tools to explore uncommitted changes
-- Group them into 1+ relevant functional units
-- Outline a commit proposal with markdown table:
+- Use git tools to explore ALL uncommitted changes
+  - including pre-existing changes predating this session
+- Group them into 1+ functional units
+- Outline a commit proposal (1 commit per functional unit) with markdown table:
 
-|number|changes made|suggested commit message|
+|commit #|changes made|suggested commit message|
 |------|------------|------------------------|
 |1,2,3...|xxx file: line xx-xx, did xxx...|feat:xxx, chore:xxx,refactor:xxx fix:xxx...|
 
