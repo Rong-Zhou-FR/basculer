@@ -75,6 +75,7 @@ help_out=$(bash "$SCRIPT" --help 2>&1)
 assert_eq "0" "$?" "--help exit code"
 assert_contains "$help_out" "lighter-dev.bash" "shows script name"
 assert_contains "$help_out" "Alacritty+Zellij" "describes terminal stack"
+assert_contains "$help_out" "stop" "mentions stop command"
 assert_contains "$help_out" "--dry-run" "mentions --dry-run flag"
 
 echo ""
@@ -142,6 +143,10 @@ assert_not_contains "$(declare -f launch_term)" "alacritty_pid" \
     "launch_term does not capture alacritty PID (setsid wrapper is unreliable)"
 assert_not_contains "$(declare -f launch_term)" "Alacritty exited immediately" \
     "launch_term does not have broken early-exit check for alacritty"
+
+# launch_term has idempotent check (skip if already active)
+assert_contains "$(declare -f launch_term)" "already active — skipping" \
+    "launch_term skips existing active sessions (idempotent)"
 
 # switch_desktop should poll until the switch takes effect
 assert_contains "$(declare -f switch_desktop)" "wmctrl -d" \
@@ -254,6 +259,44 @@ assert_contains "$(declare -f main)" "New opencode session" \
 # Final output includes daemon kill command
 assert_contains "$(declare -f main)" "Kill daemon" \
     "main prints daemon kill instructions"
+
+# ── Test: stop command ────────────────────────────────────────────────
+
+echo "=== stop ==="
+
+# _graceful_stop helper (SIGTERM → wait → SIGKILL)
+assert_contains "$(declare -f _graceful_stop)" "kill -9" \
+    "_graceful_stop escalates to SIGKILL after timeout"
+assert_contains "$(declare -f _graceful_stop)" 'kill "$pid"' \
+    "_graceful_stop sends SIGTERM first (graceful)"
+assert_contains "$(declare -f _graceful_stop)" 'ps -p "$pid"' \
+    "_graceful_stop polls process existence"
+
+# _stop_workspace function exists and covers all started processes
+assert_contains "$(declare -f _stop_workspace)" "lighter-dev-" \
+    "_stop_workspace targets lighter-dev-* sessions"
+assert_contains "$(declare -f _stop_workspace)" "delete-session --force" \
+    "_stop_workspace uses delete-session --force"
+assert_contains "$(declare -f _stop_workspace)" "systemctl --user stop opencode-serve" \
+    "_stop_workspace stops opencode daemon via systemd"
+assert_contains "$(declare -f _stop_workspace)" "desktop-plus" \
+    "_stop_workspace stops desktop-plus"
+assert_contains "$(declare -f _stop_workspace)" "OPCODE_SERVE_PORT" \
+    "_stop_workspace references OPCODE_SERVE_PORT"
+assert_contains "$(declare -f _stop_workspace)" "Floorp browser" \
+    "_stop_workspace closes Floorp browser"
+
+# _stop_workspace uses _graceful_stop for graceful termination
+assert_contains "$(declare -f _stop_workspace)" "_graceful_stop" \
+    "_stop_workspace uses _graceful_stop helper"
+
+# main() dispatches stop
+assert_contains "$(declare -f main)" "stop | --stop" \
+    "main handles stop | --stop arguments"
+assert_contains "$(declare -f main)" "_stop_workspace" \
+    "main calls _stop_workspace for stop"
+
+echo ""
 
 # ── Test: workspace registry ────────────────────────────────────────────
 

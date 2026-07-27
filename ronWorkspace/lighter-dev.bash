@@ -41,7 +41,8 @@
 #   Edit the "CONFIGURATION" section below to match your paths and commands.
 #
 # Usage:
-#   ./lighter-dev.bash                launch the workspace
+#   ./lighter-dev.bash                launch the workspace (idempotent — skips active sessions)
+#   ./lighter-dev.bash stop           stop everything started by the script
 #   ./lighter-dev.bash --help         show this message
 #   ./lighter-dev.bash --dry-run      preview without launching
 
@@ -226,6 +227,17 @@ launch_term() {
     while IFS= read -r stale_sid; do
       zellij delete-session --force "$stale_sid" 2>/dev/null || true
     done || true
+
+  # Idempotent launch: if session already exists and is ACTIVE (not EXITED),
+  # skip deletion and recreation — leave the existing session untouched.
+  if zellij list-sessions 2>/dev/null |
+    sed 's/\x1b\[[0-9;]*m//g' |
+    grep -v '(EXITED' |
+    awk '{print $1}' |
+    grep -qxF "$session_name"; then
+    log_info "Session «${session_name}» already active — skipping (idempotent)."
+    return 0
+  fi
 
   # Step 1: Delete stale session (clean slate)
   run_captured "delete-session ${session_name}" \
@@ -752,10 +764,129 @@ _run_ws_floorp() {
   restore_floorp
 }
 
+# ── Stop ────────────────────────────────────────────────────────────────────
+
+# Helper: send SIGTERM, wait up to N seconds for the process to exit,
+# then escalate to SIGKILL if it's still alive.  Returns 0 if the
+# process was fully stopped, 1 if force-kill was needed.
+_graceful_stop() {
+  local pid="$1" label="$2" timeout="${3:-3}"
+  log_info "Stopping ${label} (PID $pid) …"
+
+  # Step 1: SIGTERM (graceful)
+  kill "$pid" 2>/dev/null || true
+
+  # Step 2: Wait for graceful exit
+  local waited=0
+  while ((waited < timeout)); do
+    if ! ps -p "$pid" -o pid= 2>/dev/null | grep -qxF "$pid"; then
+      return 0
+    fi
+    sleep 1
+    ((waited++)) || true
+  done
+
+  # Step 3: Escalate to SIGKILL
+  if ps -p "$pid" -o pid= 2>/dev/null | grep -qxF "$pid"; then
+    log_warn "${label} did not exit after ${timeout}s — force killing …"
+    kill -9 "$pid" 2>/dev/null || true
+    sleep 0.5
+    return 1
+  fi
+  return 0
+}
+
+# Stop everything started by this script, trying graceful close first:
+#   1. lighter-dev-* Zellij sessions  (--force required for active sessions)
+#   2. OpenCode serve daemon          (systemctl stop → SIGTERM → SIGKILL)
+#   3. Floorp browser                 (SIGTERM — Firefox saves session → SIGKILL)
+#   4. desktop-plus GUI               (SIGTERM → SIGKILL)
+#   5. Clean up PID file
+_stop_workspace() {
+  log_info "Stopping all lighter-dev workspace items …"
+
+  # ── 1. Close all lighter-dev-* Zellij sessions ──────────────────────
+  local _sessions
+  _sessions=$(zellij list-sessions 2>/dev/null |
+    sed 's/\x1b\[[0-9;]*m//g' |
+    awk '{print $1}' |
+    grep '^lighter-dev-' || true)
+
+  local _stopped=0
+  if [[ -n "$_sessions" ]]; then
+    while IFS= read -r _sid; do
+      # Zellij requires --force for active sessions (no graceful close API).
+      # The daemon snapshot is saved on close, so data is preserved.
+      run_captured "delete-session ${_sid}" \
+        zellij delete-session --force "$_sid" || true
+      _stopped=$((_stopped + 1))
+    done <<< "$_sessions"
+    log_ok "Closed ${_stopped} Zellij session(s)."
+  else
+    log_info "No lighter-dev Zellij sessions found."
+  fi
+
+  # ── 2. Stop opencode server daemon ──────────────────────────────────
+  local _daemon_pid
+  _daemon_pid=$(ss -tlnp 2>/dev/null |
+    grep -F ":${OPCODE_SERVE_PORT}" |
+    grep -o 'pid=[0-9][0-9]*' |
+    grep -o '[0-9][0-9]*' || true)
+
+  if [[ -n "$_daemon_pid" ]] && ps -p "$_daemon_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+    # systemd stop sends SIGTERM gracefully; fall back to raw kill if it fails.
+    timeout 5 systemctl --user stop opencode-serve 2>/dev/null || _graceful_stop "$_daemon_pid" "OpenCode daemon" 5 || true
+    # Poll until port is released
+    local _wait_release=5
+    while ((_wait_release > 0)); do
+      _daemon_pid=$(ss -tlnp 2>/dev/null |
+        grep -F ":${OPCODE_SERVE_PORT}" |
+        grep -o 'pid=[0-9][0-9]*' |
+        grep -o '[0-9][0-9]*' || true)
+      [[ -z "$_daemon_pid" ]] && break
+      sleep 1
+      ((_wait_release--)) || true
+    done
+    rm -f "$OPCODE_DAEMON_PID_FILE"
+    log_ok "OpenCode daemon stopped."
+  else
+    log_info "No OpenCode server daemon found on port ${OPCODE_SERVE_PORT}."
+  fi
+
+  # ── 3. Close Floorp browser (graceful — Firefox saves session on SIGTERM) ─
+  local _floorp_bin
+  _floorp_bin=$(basename "${FLOORP_BIN}")
+  local _floorp_pid
+  _floorp_pid=$(pgrep -x -u "$(id -u)" "$_floorp_bin" 2>/dev/null || true)
+  if [[ -n "$_floorp_pid" ]]; then
+    _graceful_stop "$_floorp_pid" "Floorp browser" 5 || true
+    log_ok "Floorp browser closed."
+  else
+    log_info "No Floorp browser process found."
+  fi
+
+  # ── 4. Stop desktop-plus (started by ws3_desktop_plus) ─────────────
+  local _dp_pid
+  _dp_pid=$(pgrep -x -u "$(id -u)" "desktop-plus" 2>/dev/null || true)
+  if [[ -n "$_dp_pid" ]]; then
+    _graceful_stop "$_dp_pid" "desktop-plus" 3 || true
+    log_ok "desktop-plus stopped."
+  else
+    log_info "No desktop-plus process found."
+  fi
+
+  echo ""
+  log_ok "Workspace stop complete."
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────
 
 main() {
   case "${1:-}" in
+  stop | --stop)
+    _stop_workspace
+    exit 0
+    ;;
   --help | -h)
     sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
     exit 0
@@ -863,6 +994,7 @@ main() {
       log_info "  OPENCODE_CONFIG_CONTENT='{\"default_agent\":\"gitmaster\"}' opencode attach ${OPCODE_SERVE_URL} --mini --dir /path/to/project"
       echo ""
       log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
+      log_info "Stop everything:  ${SELF} stop"
       log_info "Restart daemon:   Re-run this script (kills + restarts)"
       log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
     else
