@@ -325,9 +325,7 @@ After any structural or UI change, update the relevant documentation to match th
 1. **Before implementing**, note which docs may need updates (grep for mentions of the code you're changing: `rg "old-command-name"` or `rg "OldComponentName"`)
 2. **After implementing**, update all affected documentation in the same commit (or same batch of commits). If the change is large enough to warrant separate doc commits, that's fine — but docs must be committed before the branch is complete.
 3. **Verify** — run `rg` to check for stale references to old names, paths, or patterns. A mention of a deleted command or renamed module is a bug.
-4. **If a `/docs` command exists** (check `commands/docs.md`), run it after applying your changes to sync the docs.
 
-The `commands/docs.md` command exists for this purpose — use it when the /docs flow covers your change. Otherwise update manually following the table above.
 
 ### Delegation to Subagents
 **How to delegate effectively:**
