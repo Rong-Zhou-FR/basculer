@@ -1,6 +1,6 @@
 ---
 description: Add tests post-hoc to existing code (spec-first protocol)
-agent: tester
+agent: copilot
 ---
 
 Write tests for existing code that has none. Use a spec-first protocol to
@@ -47,10 +47,11 @@ implementation is suspect.
 
 Test at the appropriate layer per AGENTS.md conventions.
 
-### 4. Run. If fail, rerun.
+### 4. Run tests (delegate to CI)
 
-If tests fail, rerun. If they pass the second
-time, note as flaky and proceed.
+Delegate to CI if the suite takes >30s (`gh workflow run ci.yml -f scope=unit`).
+Only run locally for a single test file or rapid iteration. If tests fail,
+rerun. If they pass the second time, note as flaky and proceed.
 
 ---
 

@@ -418,7 +418,11 @@ on cleanup procedures.
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
 - Mention relevant GitHub issues (`#N`) in commit messages
 - **One logical concern per commit.** If a refactor touches the same files as a feature, split into separate commits. Merging them makes review harder.
-- **Build before commit, not after.** Run `pnpm --filter <package> build` (or equivalent) on touched packages before `git commit`. The pre-commit hook only checks formatting, not compilation. A build failure caught after pushing wastes a round-trip.
+- **Build before commit, not after.** Distinguish:
+  - **Individual package build** (<30s): `pnpm --filter <pkg> build` — run locally.
+  - **Full transitive build** (>30s — 3-5 min): delegate to CI.
+    `gh workflow run ci.yml -f scope=build` if CI exists, or propose adding it.
+    A build failure caught after pushing wastes a round-trip.
 
 ### Worktree & Branch Cleanup
 - **Delete worktree branches immediately after the PR is merged** — delaying even one
@@ -487,6 +491,20 @@ mutation {
 }'
 ```
 
+#### Triggering CI workflows
+
+```bash
+# Discover available workflows
+gh workflow list
+
+# Run a workflow
+gh workflow run ci.yml -f scope=unit
+
+# Common scope values: unit, integration, build, e2e (comma-separated)
+gh workflow run ci.yml -f scope=unit,build
+gh workflow run ci.yml -f scope=unit,integration,build,e2e
+```
+
 Full reference with all patterns (issue CRUD, file-based bodies, schema introspection, common pitfalls):
 https://raw.githubusercontent.com/Rong-Zhou-FR/basculer/main/opencode-config/opencode/AGENTS-gh-cli.md
 
@@ -516,6 +534,24 @@ Shift processing from the browser to the build step whenever the data is known a
 - Optimizations where the runtime cost is negligible and the build-time complexity is high
 
 When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the data is fixed at build time, process it there. If it changes per request, keep it on the client or server.
+
+### CI First — <30s local, >30s delegate
+
+Before running any build or test that will take **>30 seconds**, check if the
+project has CI workflows that can do it on GitHub runners instead:
+
+```bash
+gh workflow list
+```
+
+| Runtime | What to do |
+|---------|-----------|
+| **<30s** (format check, single-package unit test, interactive debug) | Fine to run locally |
+| **>30s** (full build, integration tests, E2E, multi-package suite) | Use existing CI (`gh workflow run <name> -f scope=...`) or **propose new CI for user approval** if none exists |
+
+Rationale: every minute of heavy compute you run locally is a minute this
+machine is at OOM risk and unavailable for other sessions. GitHub runners
+are free for public repos and cheap for private ones — use them.
 
 ### Pre-existing Issues
 - Evaluate by two dimensions:
@@ -551,6 +587,23 @@ When in doubt, ask: *"Is this computation per-visitor or per-build?"* If the dat
   ```
 
 ## Testing
+
+### Run tests via CI when possible
+
+Before running any test suite that takes >30s locally, check if the project
+has CI:
+
+```bash
+gh workflow list
+```
+
+- If a CI workflow covers your scope (e.g., `gh workflow run ci.yml -f scope=unit`),
+  trigger it and wait for results.
+- Only run locally what CI cannot: rapid iteration during development (<30s),
+  single-file unit tests, interactive debugging that needs a `browser open`.
+
+The rest of this section covers test strategy, not execution mechanism. Assume
+CI is the default runner for anything non-trivial.
 
 ### Test Coverage Requirements
 Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!command` that opens a tab, a form that submits data, a list that renders items) MUST have tests at ALL applicable layers:
@@ -638,6 +691,8 @@ Test the end program as a user would — verify the front-end (GUI/CLI/TUI) work
 > If your user-simulation flow addresses existing test gaps and can be automated, append it to the automated test suite
 
 #### Reporting
+
+#### Reporting
 When reporting back user-simulation test results, use this table format:
 
 | what exact I have done | what results I expect to get | what results I got | what are my conclusions |
@@ -704,8 +759,10 @@ For browser tool setup and troubleshooting (profile clearing, timeout handling, 
    Poll until the server responds with HTTP 200 consistently. Monitor `dmesg -T`
    for OOM killer messages if the dev server crashes without error logs.
 4. **Assess** — Read found test files. Are they relevant to the change? Do their selectors/locators still match the current UI?
-5. **Run or update**:
-    - If tests exist and are valid → run them as the primary verification method (fast, deterministic, catches regressions).
+5. **Run via CI when possible**:
+    - If the project has CI with E2E coverage → trigger it (`gh workflow run ci.yml -f scope=e2e`) and wait for results.
+    - If CI is unavailable or the test needs interactive debugging → run locally.
+6. **Write or update tests** (when no CI or when adding new coverage):
     - If tests exist but selectors are stale (element not found, wrong class, changed command path) → **update the test file** to match current UI, then run.
     - If no relevant tests exist → write a new automated test file (`*e2e*` or `*spec*`), add it to the project, run it, and commit it alongside code changes.
 6. **Commit test changes** in the same commit as code changes (or a separate logical commit if tests pre-existed and were merely updated).

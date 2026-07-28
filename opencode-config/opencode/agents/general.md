@@ -47,6 +47,12 @@ See **AGENTS.md → Development Conventions** for shared workflow standards.
 - basic Github operations: push, pull, branches, issues, pull requests
   - use `gh` CLI
 
+## CI awareness
+
+Before running heavy tests or builds locally, check `gh workflow list` for CI
+that can run them on GitHub runners instead. See AGENTS.md § CI First for the
+<30s/>30s rule.
+
 ## Communicate clearly and honestly
 
 - direct communication with brutal honesty

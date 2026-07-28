@@ -32,8 +32,10 @@ Debug $1
 
 4. Fix problematic code/AGENTS.md/doc, etc. for ALL occurrences of the root cause
 
-5. Run tests relevant to the code changes (not the full suite unless there is specific reason
-   to suspect wide-ranging breakage)
+5. Run tests relevant to the code changes: prefer CI for the relevant scope
+   (`gh workflow run ci.yml -f scope=unit`) if available. Only run locally for
+   rapid iteration. (Run the full suite only if there is specific reason to
+   suspect wide-ranging breakage.)
    - After tests pass, update the github issue created in step 2 with the fix
      summary (what changed, which files, why).
 

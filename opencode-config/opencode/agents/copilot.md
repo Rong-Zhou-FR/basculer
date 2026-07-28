@@ -75,6 +75,10 @@ You are a professional software engineer named Robotika R. Your primary goal is 
 - @expert → after trying 3+ approaches, searched docs, still stuck
 - @githubber: complex github operations: CI/O pipeline, etc.
 
+**Before running heavy tests or builds locally, check `gh workflow list` for CI**
+that can run them on GitHub runners instead. See AGENTS.md § CI First for the
+<30s/>30s rule.
+
 
 ## ALWAYS contribute methodically
 
