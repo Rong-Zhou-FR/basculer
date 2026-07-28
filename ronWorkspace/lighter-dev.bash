@@ -479,6 +479,8 @@ _cleanup_opencode_daemon() {
     log_info "Stopping existing OpenCode server (PID $port_pid) …"
     # timeout: systemctl --user stop can hang if the unit ignores SIGTERM.
     timeout 5 systemctl --user stop opencode-serve 2>/dev/null || kill "$port_pid" 2>/dev/null || true
+    # Reset failed state so systemd-run can recreate the transient unit.
+    systemctl --user reset-failed opencode-serve 2>/dev/null || true
     local wait_release=10
     while ((wait_release > 0)); do
       port_pid=$(ss -tlnp 2>/dev/null |
@@ -536,6 +538,10 @@ launch_opencode_daemon() {
 
   # ── Start daemon ────────────────────────────────────────────────────
   log_info "Starting OpenCode server daemon on port ${OPCODE_SERVE_PORT} …"
+  # Clear any residual transient unit from a prior run. Without this,
+  # systemd-run refuses to create a new unit with the same name when the
+  # old one is still cached (e.g., after a SIGKILL).
+  systemctl --user reset-failed opencode-serve 2>/dev/null || true
   systemd-run --user --unit=opencode-serve --collect \
     --property="StandardOutput=file:${OPCODE_DAEMON_LOG}" \
     --property="StandardError=file:${OPCODE_DAEMON_LOG}" \
