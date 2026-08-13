@@ -16,6 +16,9 @@
 #   - _run_* functions for each workspace item
 #   - Floorp is a workspace item (ws_floorp), launched early if selected
 #   - OpenCode daemon starts only when selected items need opencode
+#   - _cleanup_opencode_daemon keeps in-use servers, asks y/N before restart
+#   - _opencode_daemon_in_use detects attached clients via ESTAB connections
+#   - launch_opencode_daemon reuses a server kept by cleanup
 #   - _item_needs_opencode correctly identifies opencode items
 #   - Every CMD_OPENCODE / CMD_MASTER usage includes --dir
 #   - No stale gen_layout / LAYOUT_DIR references remain
@@ -201,13 +204,33 @@ assert_contains "$(declare -f launch_opencode_daemon)" "PID_FILE" \
 assert_contains "$(declare -f launch_opencode_daemon)" "OPCODE_DAEMON_TIMEOUT" \
     "launch_opencode_daemon uses OPCODE_DAEMON_TIMEOUT for polling"
 
-# _cleanup_opencode_daemon (extracted from launch_opencode_daemon)
-assert_contains "$(declare -f _cleanup_opencode_daemon)" "Stopping existing" \
-    "_cleanup_opencode_daemon stops existing server before restart"
+# _cleanup_opencode_daemon must never blindly kill a running server
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "Restart it? [y/N]" \
+    "_cleanup_opencode_daemon asks y/N before restarting an idle server"
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "in use by attached session" \
+    "_cleanup_opencode_daemon keeps a server with attached sessions without asking"
+assert_contains "$(declare -f _cleanup_opencode_daemon)" "OPCODE_DAEMON_ALREADY_RUNNING" \
+    "_cleanup_opencode_daemon marks a kept server for reuse"
 assert_contains "$(declare -f _cleanup_opencode_daemon)" "ss -tlnp" \
     "_cleanup_opencode_daemon polls ss for port"
 assert_contains "$(declare -f _cleanup_opencode_daemon)" "forcing" \
-    "_cleanup_opencode_daemon force-kills after timeout"
+    "_cleanup_opencode_daemon force-kills after timeout (when restart confirmed)"
+assert_not_contains "$(declare -f _cleanup_opencode_daemon)" "Stopping existing OpenCode server" \
+    "_cleanup_opencode_daemon no longer kills an existing server unconditionally"
+
+# _opencode_daemon_in_use — attached-client detection via ESTAB connections
+assert_contains "$(declare -f _opencode_daemon_in_use)" 'dport = :${OPCODE_SERVE_PORT}' \
+    "_opencode_daemon_in_use filters established connections to the server port"
+assert_contains "$(declare -f _opencode_daemon_in_use)" "sample1" \
+    "_opencode_daemon_in_use takes a first connection sample"
+assert_contains "$(declare -f _opencode_daemon_in_use)" "sample2" \
+    "_opencode_daemon_in_use takes a second connection sample"
+assert_contains "$(declare -f _opencode_daemon_in_use)" "grep -o 'pid=" \
+    "_opencode_daemon_in_use extracts foreign PIDs from ss output"
+
+# launch_opencode_daemon reuses a server kept by cleanup
+assert_contains "$(declare -f launch_opencode_daemon)" "OPCODE_DAEMON_ALREADY_RUNNING" \
+    "launch_opencode_daemon reuses an existing server instead of starting a new one"
 
 # CMD_OPENCODE uses attach mode
 assert_contains "${CMD_OPENCODE}" "opencode attach" \

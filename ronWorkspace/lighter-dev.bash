@@ -8,6 +8,10 @@
 # must NEVER execute a live run of this script without first obtaining
 # explicit, informed permission from the user. Use `--dry-run` for preview.
 #
+#   The shared opencode server is NEVER killed blindly: a server with
+#   attached sessions is kept as-is, and an idle server is restarted only
+#   with explicit y/N consent.
+#
 # Opens Alacritty+Zellij terminals across multiple Linux virtual desktops,
 # each pre-configured with project directories and startup commands.
 # Designed for the lighter-system development workflow.
@@ -41,7 +45,8 @@
 #   Edit the "CONFIGURATION" section below to match your paths and commands.
 #
 # Usage:
-#   ./lighter-dev.bash                launch the workspace (idempotent — skips active sessions)
+#   ./lighter-dev.bash                launch the workspace (idempotent — skips active sessions;
+#                                     restarts an idle opencode server only with y/N consent)
 #   ./lighter-dev.bash stop           stop everything started by the script
 #   ./lighter-dev.bash --help         show this message
 #   ./lighter-dev.bash --dry-run      preview without launching
@@ -456,12 +461,40 @@ restore_floorp() {
 
 # ── OpenCode daemon ──────────────────────────────────────────────────────
 
-# Preemptive cleanup: kill any existing opencode server on our port.
-# Called unconditionally in main() so stale daemons are always freed,
-# even when no workspace item needs opencode this session.
+# Returns 0 (in use) if the opencode server on OPCODE_SERVE_PORT has at
+# least one attached client, 1 otherwise.  Detection: an `opencode attach`
+# client keeps persistent ESTAB connections to the server port, while an
+# idle server has none (its internal self-connections show the server's own
+# PID and are excluded).  Samples twice 0.5s apart and requires the foreign
+# PID to appear in both samples so a transient connection (e.g. a curl
+# health probe) does not count as "in use".
+_opencode_daemon_in_use() {
+  local server_pid="$1" sample1 sample2 foreign
+  sample1=$(ss -tnp state established "( dport = :${OPCODE_SERVE_PORT} )" 2>/dev/null || true)
+  sleep 0.5
+  sample2=$(ss -tnp state established "( dport = :${OPCODE_SERVE_PORT} )" 2>/dev/null || true)
+
+  local -a candidates
+  candidates=($(echo "$sample1" | grep -o 'pid=[0-9][0-9]*' | grep -o '[0-9][0-9]*' | sort -u || true))
+  for foreign in "${candidates[@]}"; do
+    [[ "$foreign" == "$server_pid" ]] && continue
+    if echo "$sample2" | grep -qF "pid=${foreign}"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Decide what to do with an existing opencode server before the workspace
+# launches.  Called unconditionally in main() so stale ~600MB servers are
+# freed before terminals take focus — but NEVER blindly:
+#   - definitely in use (attached clients) → keep, no question asked
+#   - otherwise → ask the user y/N (safe default N = keep)
+# When the server is kept, OPCODE_DAEMON_ALREADY_RUNNING is set so that
+# launch_opencode_daemon reuses it instead of starting a fresh one.
 _cleanup_opencode_daemon() {
   if $DRY_RUN; then
-    log_info "OpenCode: would stop any existing server on port ${OPCODE_SERVE_PORT} (preemptive cleanup)"
+    log_info "OpenCode: would check for a server on port ${OPCODE_SERVE_PORT} (restart only with y/N consent if idle)"
     return 0
   fi
 
@@ -475,8 +508,28 @@ _cleanup_opencode_daemon() {
     return 0
   fi
 
-  if ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
-    log_info "Stopping existing OpenCode server (PID $port_pid) …"
+  if ! ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+    log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
+    log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
+    # Non-blocking: warn only — start will fail later if we need the port.
+    return 0
+  fi
+
+  # ── Server is running: keep or restart? ────────────────────────────
+  if _opencode_daemon_in_use "$port_pid"; then
+    log_info "OpenCode server (PID $port_pid) is in use by attached session(s) — leaving it running."
+    OPCODE_DAEMON_ALREADY_RUNNING=true
+    echo "$port_pid" >"$OPCODE_DAEMON_PID_FILE"
+    return 0
+  fi
+
+  # Not definitely in use — ask the user (safe default: keep it running).
+  local answer
+  read -r -p "OpenCode server (PID ${port_pid}) on port ${OPCODE_SERVE_PORT} has no attached sessions. Restart it? [y/N] " answer || true
+  echo ""
+  case "$answer" in
+  y | Y | yes | YES)
+    log_info "Restarting OpenCode server (PID $port_pid) …"
     # timeout: systemctl --user stop can hang if the unit ignores SIGTERM.
     timeout 5 systemctl --user stop opencode-serve 2>/dev/null || kill "$port_pid" 2>/dev/null || true
     # Reset failed state so systemd-run can recreate the transient unit.
@@ -498,11 +551,13 @@ _cleanup_opencode_daemon() {
       sleep 1
     fi
     rm -f "$OPCODE_DAEMON_PID_FILE"
-  else
-    log_warn "Port ${OPCODE_SERVE_PORT} is held by non-opencode process"
-    log_warn "  (PID $port_pid: $(ps -p "$port_pid" -o comm= 2>/dev/null || echo 'unknown'))"
-    # Non-blocking: warn only — start will fail later if we need the port.
-  fi
+    ;;
+  *)
+    log_info "Keeping existing OpenCode server (PID $port_pid)."
+    OPCODE_DAEMON_ALREADY_RUNNING=true
+    echo "$port_pid" >"$OPCODE_DAEMON_PID_FILE"
+    ;;
+  esac
 }
 
 # Start the shared `opencode serve` daemon.  Port should be clean after
@@ -514,6 +569,13 @@ launch_opencode_daemon() {
   fi
 
   need_cmd "opencode"
+
+  # If cleanup decided to keep an existing server (in use, or kept with user
+  # consent), reuse it instead of starting a fresh one.
+  if [[ "${OPCODE_DAEMON_ALREADY_RUNNING:-}" == "true" ]]; then
+    log_ok "OpenCode server already running — reusing (PID $(cat "$OPCODE_DAEMON_PID_FILE" 2>/dev/null || echo 'unknown'))."
+    return 0
+  fi
 
   # Verify port is free (cleanup should have handled it, but defend against
   # racy re-occupation or a non-opencode holder).
@@ -709,9 +771,9 @@ _run_ws3_desktop_plus() {
 _run_ws4_basculer() {
   log_info "=== Workspace 4 — basculer ==="
   launch_term "$DESK_WS4" "basculer" \
-    "basculer-LLM|${DIR_BASCULER}|${CMD_OPENCODE} --dir ${DIR_BASCULER}" \
+    "basculer-LLM|${DIR_BASCULER|" \
     "sh|${DIR_BASCULER}|" \
-    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|${CMD_OPENCODE} --dir ${DIR_BASCULER}/opencode-config" \
+    "opencode-config-LLM|${DIR_BASCULER}/opencode-config|" \
     "sh|${DIR_BASCULER}/opencode-config|" \
     "opencode-agents|${DIR_BASCULER}/opencode-config/opencode/agents|ls" \
     "opencode-commands|${DIR_BASCULER}/opencode-config/opencode/commands|ls"
@@ -1001,7 +1063,7 @@ main() {
       echo ""
       log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
       log_info "Stop everything:  ${SELF} stop"
-      log_info "Restart daemon:   Re-run this script (kills + restarts)"
+      log_info "Restart daemon:   Re-run this script (asks y/N before restarting an idle server)"
       log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
     else
       log_ok "All selected items launched (opencode daemon was not started)."

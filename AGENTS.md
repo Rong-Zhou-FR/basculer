@@ -89,6 +89,8 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
     runtime across all opencode sessions (~3-4x memory reduction vs N independent servers)
   - Gitmaster tabs use `opencode run --attach --agent gitmaster --mini` (interactive split-footer)
   - Configurable via `OPCODE_SERVE_PORT` (default 4096)
+  - Existing opencode server is never killed blindly: attached sessions → kept as-is;
+    idle server → restarted only with y/N consent (default N = keep)
 - `tests/test_lighter_dev.bats` — standalone bash test suite for lighter-dev.bash
 
 **.serena** — Serena AI project configuration (disabled; kept as fallback):

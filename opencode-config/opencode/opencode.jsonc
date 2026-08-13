@@ -203,11 +203,11 @@
     "huggingfacer": {
       "model": "opencode/deepseek-v4-flash-free"
     },
-    "gitmaster": {
-      "model": "opencode/deepseek-v4-flash-free"
-    },
-    "build": {
-      "model": "opencode/deepseek-v4-flash-free"
-    }
+    // "gitmaster": {
+    //   "model": "opencode/deepseek-v4-flash-free"
+    // },
+    // "build": {
+    //   "model": "opencode/deepseek-v4-flash-free"
+    // }
   }
 }
