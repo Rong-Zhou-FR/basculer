@@ -146,11 +146,10 @@
     },
     "external_directory": {
       "*": "ask",
-      // Read-only runtime introspection (/proc is a kernel interface, not a data dir. As long as LLM does not have root privilege, little harm can be done)
-      "/proc/**": "allow",
+      "/proc/**": "allow", // Read-only runtime introspection (/proc is a kernel interface, not a data dir. As long as LLM does not have root privilege, little harm can be done)
       "/tmp/**": "allow",
       "**/.ssh/**": "allow",
-      "~/.local/share/opencode/**": "allow",
+      "~/.local/share/**": "allow",
       "~/.opencode/**": "allow",
       "~/kodo/**": "allow",
       "~/.config/opencode/**": "allow",
