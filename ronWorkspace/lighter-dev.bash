@@ -644,9 +644,9 @@ launch_opencode_daemon() {
 # end get the next number.  Inserting mid-array renumbers everything
 # after the insertion point — update menu references accordingly.
 
-declare -a _WS_IDS=()          # item IDs (parallel arrays, same index)
-declare -a _WS_LABELS=()       # display labels
-declare -a _WS_NEEDS_OPENCODE=()  # "true" / "false"
+declare -a _WS_IDS=()            # item IDs (parallel arrays, same index)
+declare -a _WS_LABELS=()         # display labels
+declare -a _WS_NEEDS_OPENCODE=() # "true" / "false"
 
 _register_item() {
   _WS_IDS+=("$1")
@@ -656,26 +656,29 @@ _register_item() {
 
 # ── Registrations ───────────────────────────────────────────────────
 # Usage: _register_item "<id>" "<menu label>" <needs_opencode>
-_register_item "ws_floorp"            "pre — Floorp browser (session restore)"         false
-_register_item "ws1_config"           "WS1 — lighter-config (8 tabs)"                    false
-_register_item "ws2_markmap"          "WS2 — ronzz-markmap (3 tabs)"                     false
-_register_item "ws3_autish"           "WS3 — autish repl (3 tabs)"                       false
-_register_item "ws3_desktop_plus"     "WS3 — desktop-plus (GUI)"                         false
-_register_item "ws4_basculer"         "WS4 — basculer (6 tabs)"                           true
-_register_item "ws4_notes"            "WS4 — notes/scratch (3 tabs)"                     false
-_register_item "ws5_lbgm"             "WS5 — lighterbird (gm + oc + shell)"               true
-_register_item "ws5_smgm"             "WS5 — semantika (gm + 2x oc + shell)"              true
-_register_item "ws5_rzdoi"            "WS5 — ronzzdoi (gm + oc + shell)"                  true
-_register_item "ws5_classroomioplus"  "WS5 — classroomioplus (gm + oc + shell)"           true
-_register_item "ws12_fec"             "WS12 — france-en-chiffres (3 tabs)"                true
+_register_item "ws_floorp" "pre — Floorp browser (session restore)" false
+_register_item "ws1_config" "WS1 — lighter-config (8 tabs)" false
+_register_item "ws2_markmap" "WS2 — ronzz-markmap (3 tabs)" false
+_register_item "ws3_autish" "WS3 — autish repl (3 tabs)" false
+_register_item "ws3_desktop_plus" "WS3 — desktop-plus (GUI)" false
+_register_item "ws4_basculer" "WS4 — basculer (6 tabs)" true
+_register_item "ws4_notes" "WS4 — notes/scratch (3 tabs)" false
+_register_item "ws5_lbgm" "WS5 — lighterbird (gm + oc + shell)" true
+_register_item "ws5_smgm" "WS5 — semantika (gm + 2x oc + shell)" true
+_register_item "ws5_rzdoi" "WS5 — ronzzdoi (gm + oc + shell)" true
+_register_item "ws5_classroomioplus" "WS5 — classroomioplus (gm + oc + shell)" true
+_register_item "ws12_fec" "WS12 — france-en-chiffres (3 tabs)" true
 
 SELECTED_ITEMS="__ALL__"
 
 # Returns the display label for a workspace item ID.
 _ws_label() {
   local id="$1" i
-  for ((i=0; i<${#_WS_IDS[@]}; i++)); do
-    [[ "${_WS_IDS[i]}" == "$id" ]] && { echo "${_WS_LABELS[i]}"; return 0; }
+  for ((i = 0; i < ${#_WS_IDS[@]}; i++)); do
+    [[ "${_WS_IDS[i]}" == "$id" ]] && {
+      echo "${_WS_LABELS[i]}"
+      return 0
+    }
   done
   echo "UNKNOWN:${id}"
   return 1
@@ -690,9 +693,9 @@ _prompt_selection() {
   echo "================================================================="
   echo ""
   local i label
-  for ((i=0; i<${#_WS_IDS[@]}; i++)); do
+  for ((i = 0; i < ${#_WS_IDS[@]}; i++)); do
     label="$(_ws_label "${_WS_IDS[i]}")"
-    printf "  %2d.  %s\n" $((i+1)) "$label"
+    printf "  %2d.  %s\n" $((i + 1)) "$label"
   done
   echo ""
   echo "  Enter space-separated numbers to launch ONLY those items."
@@ -771,7 +774,7 @@ _run_ws3_desktop_plus() {
 _run_ws4_basculer() {
   log_info "=== Workspace 4 — basculer ==="
   launch_term "$DESK_WS4" "basculer" \
-    "basculer-LLM|${DIR_BASCULER|" \
+    "basculer-LLM|${DIR_BASCULER}|" \
     "sh|${DIR_BASCULER}|" \
     "opencode-config-LLM|${DIR_BASCULER}/opencode-config|" \
     "sh|${DIR_BASCULER}/opencode-config|" \
@@ -888,7 +891,7 @@ _stop_workspace() {
       run_captured "delete-session ${_sid}" \
         zellij delete-session --force "$_sid" || true
       _stopped=$((_stopped + 1))
-    done <<< "$_sessions"
+    done <<<"$_sessions"
     log_ok "Closed ${_stopped} Zellij session(s)."
   else
     log_info "No lighter-dev Zellij sessions found."
@@ -1018,7 +1021,7 @@ main() {
   # do, skip the daemon entirely (saves ~600 MB + startup time).
   local _needs_opencode=false
   local _oc_idx
-  for ((_oc_idx=0; _oc_idx<${#_WS_IDS[@]}; _oc_idx++)); do
+  for ((_oc_idx = 0; _oc_idx < ${#_WS_IDS[@]}; _oc_idx++)); do
     if $DRY_RUN || should_launch $((_oc_idx + 1)); then
       if [[ "${_WS_NEEDS_OPENCODE[_oc_idx]}" == "true" ]]; then
         _needs_opencode=true
@@ -1039,7 +1042,7 @@ main() {
   # ── Launch selected workspace items ──────────────────────────────
   # Floorp (index 0) was handled early; skip it in the loop.
   local _item_idx _item_id
-  for ((_item_idx=1; _item_idx<${#_WS_IDS[@]}; _item_idx++)); do
+  for ((_item_idx = 1; _item_idx < ${#_WS_IDS[@]}; _item_idx++)); do
     _item_id="${_WS_IDS[_item_idx]}"
     if $DRY_RUN || should_launch $((_item_idx + 1)); then
       _run_workspace_item "$_item_id"
