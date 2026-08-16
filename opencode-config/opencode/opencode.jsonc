@@ -1,6 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "copilot",
+  // Lightweight tasks (title generation, etc.) — use opencode's free model
+  // instead of auto-deriving a small model from the main provider's pool.
+  "small_model": "opencode/deepseek-v4-flash-free",
   "plugin": ["opencode-notify",
     "./plugins/opencode-worktree-enhanced/index.ts",
     // "./plugins/opencode-metasearch2/index.ts",  // disabled: brave-search is always available (#5)
@@ -79,6 +82,21 @@
       "options": {
         "baseURL": "http://localhost:8000/v1"
       }
+    },
+    "openrouter": {
+      "models": {
+        // Pin DeepSeek V4 Flash to Baidu's fp8 endpoint (cheapest fp8, 99.6% uptime).
+        // allow_fallbacks: false = hard pin; if Baidu is down the request errors.
+        // Set to true to fall back to other providers when Baidu is unavailable.
+        "deepseek/deepseek-v4-flash": {
+          "options": {
+            "provider": {
+              "order": ["Baidu"],
+              "allow_fallbacks": false
+            }
+          }
+        }
+      }
     }
   },
 
@@ -155,6 +173,7 @@
       "~/.config/opencode/**": "allow",
       "~/.config/lighterbird/**": "allow",
       "**serena/**": "allow",
+      "~/shared-ronzz-nextcloud/**": "allow",
       "~/.local/share/lighterbird/**": "allow",
       "~/tmp": "allow",
       "~/tmp/**": "allow"
@@ -167,10 +186,10 @@
 
   "agent": {
     "copilot": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openrouter/deepseek/deepseek-v4-flash"
     },
     "auditor": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openrouter/deepseek/deepseek-v4-flash"
     },
     // "explore": {
     //   "model": "opencode/deepseek-v4-flash-free"
@@ -188,13 +207,13 @@
   //     "model": "opencode/deepseek-v4-flash-free"
   //   },
     "architect": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openrouter/deepseek/deepseek-v4-flash"
     },
   //   "planner": {
   //     "model": "opencode/deepseek-v4-flash-free"
   //   },
     "expert": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "openrouter/deepseek/deepseek-v4-flash"
     },
     "githubber": {
       "model": "github-copilot/claude-haiku-4.5"
