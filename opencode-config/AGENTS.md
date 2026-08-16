@@ -56,6 +56,33 @@ Project-local plugins and state live alongside the project's `.opencode/` direct
 - Install the CLI: `npm install -g opencode`
 - Run: `opencode` from a project root to activate local plugins.
 
+## Config Loading Semantics (restart the server, not the client)
+
+**In a detached client-server model (`opencode serve` + `opencode attach`, as used by
+lighter-dev.bash), config is loaded ONCE at SERVER start time — not per-client, not
+per-session, not on attach.** The server caches the merged config (opencode.jsonc +
+agents/*.md + plugins) in memory for its entire lifetime. Attaching a client does NOT
+re-read the config files; it receives the server's already-loaded copy.
+
+Consequences:
+
+- **Editing `opencode.jsonc` or `agents/*.md` has ZERO effect on a running server.**
+  The change only takes effect after the server process restarts and re-loads config.
+- **Do not tell users to "restart opencode" or "restart the client/TUI"** — that
+  re-attaches to the same stale server. The correct fix is restarting the **server**
+  (e.g. `opencode serve --port <port>`), not the client.
+- **Symptom → fix**:
+  - User reports "I changed the model/provider/permissions/MCP config but it's not working"
+  - → First suspect a stale server. Invite the user to restart the server before
+    debugging further.
+  - `opencode debug config` prints the config as a FRESH process sees it. If it differs
+    from what sessions are actually using, the running server is stale — restart it.
+- **Also check `~/.local/state/opencode/model.json`** — the `recent` list there feeds
+  `defaultModel()` (when no global `model` is set) and the client's "recent" fallback.
+  A stale top entry (e.g. pointing at an old provider) can override expected defaults
+  even after a server restart. Clean it or set a global `model` to make resolution
+  deterministic.
+
 ## Configuration Files
 
 | File / Directory | Purpose |
