@@ -77,11 +77,27 @@ Consequences:
     debugging further.
   - `opencode debug config` prints the config as a FRESH process sees it. If it differs
     from what sessions are actually using, the running server is stale — restart it.
+  - **Verify mechanically, don't assume:** compare the server's start time
+    (`ps -o lstart -p <pid>`) with the config file's mtime (`stat -c %y opencode.jsonc`).
+    If the server started before the config was edited, it is stale by definition —
+    no source-level debugging needed to explain the symptom.
 - **Also check `~/.local/state/opencode/model.json`** — the `recent` list there feeds
   `defaultModel()` (when no global `model` is set) and the client's "recent" fallback.
   A stale top entry (e.g. pointing at an old provider) can override expected defaults
-  even after a server restart. Clean it or set a global `model` to make resolution
-  deterministic.
+  even after a server restart. This state can silently override a config that is
+  itself correct. Fix: clean the entry, or set a global `model` in `opencode.jsonc` —
+  `defaultModel()` checks it FIRST, short-circuiting the `recent` list entirely.
+
+## Provider Model Pinning (keyed by exact ID)
+
+OpenRouter provider options are keyed by the **exact model ID** — a pin on
+`deepseek/deepseek-v4-flash` does NOT apply to `deepseek/deepseek-v4-flash-0731`
+or the `~deepseek/deepseek-v4-flash-latest` auto alias. Hand-selecting one of
+those IDs silently falls back to OpenRouter's default auto-provider routing.
+
+When pinning a model family to a specific endpoint, pin **every selectable ID**:
+the base ID, dated checkpoints, and `~` aliases. Keep them in sync when the
+endpoint changes.
 
 ## Configuration Files
 
