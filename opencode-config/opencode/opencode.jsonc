@@ -1,6 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "copilot",
+  // Default model for all agents — routed via openrouter to DigitalOcean's
+  // endpoint (see provider.openrouter below). Agents that need something
+  // different override with their own "model" key.
+  "model": "openrouter/deepseek/deepseek-v4-flash-0731",
   // Lightweight tasks (title generation, etc.) — use opencode's free model
   // instead of auto-deriving a small model from the main provider's pool.
   "small_model": "opencode/deepseek-v4-flash-free",
@@ -85,13 +89,33 @@
     },
     "openrouter": {
       "models": {
-        // Pin DeepSeek V4 Flash to Baidu's fp8 endpoint (cheapest fp8, 99.6% uptime).
-        // allow_fallbacks: false = hard pin; if Baidu is down the request errors.
-        // Set to true to fall back to other providers when Baidu is unavailable.
+        // Pin DeepSeek V4 Flash to DigitalOcean's endpoint.
+        // allow_fallbacks: false = hard pin; if DigitalOcean is down the request errors.
+        // Set to true to fall back to other providers when DigitalOcean is unavailable.
         "deepseek/deepseek-v4-flash": {
           "options": {
             "provider": {
-              "order": ["Baidu"],
+              "order": ["DigitalOcean"],
+              "allow_fallbacks": false
+            }
+          }
+        },
+        // Same hard pin for the other deepseek-v4-flash IDs users can select:
+        // the dated checkpoint and the OpenRouter "~" auto-routing alias.
+        // Without these, hand-selecting those IDs falls back to OpenRouter's
+        // default auto-provider routing instead of your pinned endpoint.
+        "deepseek/deepseek-v4-flash-0731": {
+          "options": {
+            "provider": {
+              "order": ["DigitalOcean"],
+              "allow_fallbacks": false
+            }
+          }
+        },
+        "~deepseek/deepseek-v4-flash-latest": {
+          "options": {
+            "provider": {
+              "order": ["DigitalOcean"],
               "allow_fallbacks": false
             }
           }
@@ -167,7 +191,7 @@
       "/proc/**": "allow", // Read-only runtime introspection (/proc is a kernel interface, not a data dir. As long as LLM does not have root privilege, little harm can be done)
       "/tmp/**": "allow",
       "**/.ssh/**": "allow",
-      "~/.local/share/**": "allow",
+      "~/.local/**": "allow",
       "~/.opencode/**": "allow",
       "~/kodo/**": "allow",
       "~/.config/opencode/**": "allow",
@@ -185,12 +209,9 @@
   },
 
   "agent": {
-    "copilot": {
-      "model": "openrouter/deepseek/deepseek-v4-flash"
-    },
-    "auditor": {
-      "model": "openrouter/deepseek/deepseek-v4-flash"
-    },
+    // All agents default to the global "model" above. Only exceptions
+    // override it here (githubber, huggingfacer). copilot/auditor/architect/
+    // expert are defined in agents/*.md and inherit the global default.
     // "explore": {
     //   "model": "opencode/deepseek-v4-flash-free"
     // },
@@ -206,15 +227,9 @@
   //   "refactorer": {
   //     "model": "opencode/deepseek-v4-flash-free"
   //   },
-    "architect": {
-      "model": "openrouter/deepseek/deepseek-v4-flash"
-    },
   //   "planner": {
   //     "model": "opencode/deepseek-v4-flash-free"
   //   },
-    "expert": {
-      "model": "openrouter/deepseek/deepseek-v4-flash"
-    },
     "githubber": {
       "model": "github-copilot/claude-haiku-4.5"
     },
