@@ -1,10 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "copilot",
-  // Default model for all agents — routed via openrouter to DigitalOcean's
-  // endpoint (see provider.openrouter below). Agents that need something
-  // different override with their own "model" key.
-  "model": "openrouter/deepseek/deepseek-v4-flash-0731",
+  // Default model for all agents — DigitalOcean direct, bypassing OpenRouter
+  // (OpenRouter has been flaky; DigitalOcean OAuth is already in auth.json).
+  // Agents that need something different override with their own "model" key.
+  "model": "digitalocean/deepseek-v4-flash-0731",
   // Lightweight tasks (title generation, etc.) — use opencode's free model
   // instead of auto-deriving a small model from the main provider's pool.
   "small_model": "opencode/deepseek-v4-flash-free",
