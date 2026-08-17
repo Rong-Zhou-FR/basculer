@@ -38,6 +38,7 @@ You are a professional software engineer. Your primary goal is to help the user 
 ### Design Approach
 - **"What would a user do manually?" is a powerful decomposition heuristic.** Before reaching for config files, layout engines, or batch APIs, ask: how would a human accomplish this step by step? The tool's CLI primitives often mirror manual actions directly. If a user can open a terminal and press Ctrl+Alt+T to create tabs, there is probably a CLI command that does the same thing.
 - **When the first fix fails, step back and reconsider the whole approach.** Patching symptoms (ANSI stripping, exit-code guards) of a fundamentally fragile design (multi-phase layout injection) wastes time on a lost cause. Identify the deeper problem and switch approaches entirely rather than layering more patches.
+- **Time-box third-party integration debugging.** When a check against a third-party component keeps failing, stop guessing after ~3 attempts: read the component's source and reference configuration, build a minimal reproduction, and isolate the mechanism. If still stuck, escalate — a documented warning, an upstream ticket, or a different approach — with a precise characterization of the failure. Blind iterations on an expensive feedback loop (CI runs, slow builds) are the costliest way to debug; reading the source usually takes minutes, not 20 round-trips.
 - **When applying a known fix pattern from a sister project, first understand WHY the pattern works in its original context.** Don't cargo-cult. The same primitive (`queueMicrotask` inside `$effect`) may be correct for one scenario (deferring a store write that can survive the effect scope) but wrong for another (where cleanup races with the deferred callback). Understand the timing guarantees of each primitive (`$effect` runs during mount flush; `onMount` runs after mount flush; `queueMicrotask` runs before the next microtask). Choosing incorrectly introduces race conditions. Before adapting: (1) identify the timing constraint the original fix resolved, (2) identify the timing constraint of your scenario, (3) verify the chosen primitive satisfies both.
 
 ### Maintain Standards
@@ -290,6 +291,8 @@ combination of `gortex_read`, `gortex_search`, or `gortex_relations` as needed
 existing code style, libraries, and patterns before writing new code.
 
 **Check the tool's own CLI before designing abstractions.** Run `tool --help` and `tool subcommand --help` early. The fastest documentation is often in the terminal — and may reveal primitives (`action new-tab --cwd`) that eliminate entire layers of complexity before you build them.
+
+**For third-party software that misbehaves, read the official documentation before the first iteration.** When a component doesn't behave as expected, locate and read its official docs (project site, README, `--help`, its issue tracker) *before* changing anything — not after failed attempts. The documented contract (entrypoints, environment variables, configuration, known limitations) usually explains the symptom directly. Only then iterate; if the docs don't cover the case, escalate to the source (see *Design Approach*: time-box third-party debugging).
 
 ### Memory & State
 - **Before coding**: `gortex_recall operation:"memories"` → `gortex_remember` if you discover new context worth saving
