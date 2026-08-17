@@ -51,7 +51,7 @@ permission:
 ## Contribution rules
 
 - ASK user before editing file outside `.`
-  - if an external repo has a problem, create an issue via @githubber and ASK user how to proceed
+  - if an external repo has a problem, create an issue directly with `gh` (file-based `--body-file`) and ASK user how to proceed
 
 ## Your responsibility
 

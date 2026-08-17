@@ -35,6 +35,6 @@ Good references:
 - package.json/Makefile
 - recent git log
 - CI/CD config for build/test commands
-- github issues/pull requests (ask @githubber subagent)
+- github issues/pull requests (use `gh` CLI directly)
 
 Follow conventions in AGENTS.md.
