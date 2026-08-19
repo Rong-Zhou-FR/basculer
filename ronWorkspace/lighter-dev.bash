@@ -35,6 +35,10 @@
 #     classroomioplus:  gitmaster | opencode | shell
 #   WS 12 (desk 11) — 1 terminal, 3 tabs:
 #     france-en-chiffres: opencode | shell | content
+#   Menu item 13 — OpenCode server ONLY (no terminals):
+#     Starts the shared opencode server on port 4096 WITHOUT attaching any
+#     client, for manual use later via
+#     `opencode attach http://127.0.0.1:4096 --dir <project>`.
 #
 # Prerequisites:
 #   - alacritty       terminal emulator
@@ -668,6 +672,7 @@ _register_item "ws5_smgm" "WS5 — semantika (gm + 2x oc + shell)" true
 _register_item "ws5_rzdoi" "WS5 — ronzzdoi (gm + oc + shell)" true
 _register_item "ws5_classroomioplus" "WS5 — classroomioplus (gm + oc + shell)" true
 _register_item "ws12_fec" "WS12 — france-en-chiffres (3 tabs)" true
+_register_item "oc_server" "OpenCode server only — port 4096 (no clients)" true
 
 SELECTED_ITEMS="__ALL__"
 
@@ -833,6 +838,32 @@ _run_ws12_fec() {
 
 _run_ws_floorp() {
   restore_floorp
+}
+
+# Start ONLY the shared opencode server — no terminal clients.  Selecting
+# just this item launches the daemon on OPCODE_SERVE_PORT for manual use;
+# attach later with `opencode attach ${OPCODE_SERVE_URL} --dir <project>`.
+# The daemon is launched by main() BEFORE the item loop, so by the time
+# this runs the server is already up (or was reused from a prior run).
+_run_oc_server() {
+  if $DRY_RUN; then
+    log_info "OpenCode: server would be started on port ${OPCODE_SERVE_PORT} (no clients)"
+    return 0
+  fi
+
+  local oc_pid
+  oc_pid=$(ss -tlnp 2>/dev/null |
+    grep -F ":${OPCODE_SERVE_PORT}" |
+    grep -o 'pid=[0-9][0-9]*' |
+    grep -o '[0-9][0-9]*' ||
+    true)
+  if [[ -n "$oc_pid" ]]; then
+    log_ok "OpenCode server running on ${OPCODE_SERVE_URL} (PID ${oc_pid}) — no clients attached."
+    log_info "Attach manually later with:  opencode attach ${OPCODE_SERVE_URL} --dir <project>"
+  else
+    log_warn "OpenCode server not detected on port ${OPCODE_SERVE_PORT}."
+    log_warn "  Check: ${OPCODE_DAEMON_LOG}"
+  fi
 }
 
 # ── Stop ────────────────────────────────────────────────────────────────────

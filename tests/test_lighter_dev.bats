@@ -325,9 +325,9 @@ echo ""
 
 echo "=== workspace registry ==="
 
-# _WS_IDS should have 12 entries (floorp + 11 workspace terminals/GUIs)
-assert_eq "12" "${#_WS_IDS[@]}" \
-    "_WS_IDS has 12 entries"
+# _WS_IDS should have 13 entries (floorp + 11 workspace terminals/GUIs + oc_server)
+assert_eq "13" "${#_WS_IDS[@]}" \
+    "_WS_IDS has 13 entries"
 
 # _WS_NEEDS_OPENCODE should be same length (parallel array)
 assert_eq "${#_WS_IDS[@]}" "${#_WS_NEEDS_OPENCODE[@]}" \
@@ -357,7 +357,7 @@ for ((_ws_test_i=0; _ws_test_i<${#_WS_IDS[@]}; _ws_test_i++)); do
     _ws_test_id="${_WS_IDS[_ws_test_i]}"
     _ws_test_meta="${_WS_NEEDS_OPENCODE[_ws_test_i]}"
     case "$_ws_test_id" in
-        ws4_basculer|ws5_lbgm|ws5_smgm|ws5_rzdoi|ws5_classroomioplus|ws12_fec)
+        ws4_basculer|ws5_lbgm|ws5_smgm|ws5_rzdoi|ws5_classroomioplus|ws12_fec|oc_server)
             [[ "$_ws_test_meta" == "true" ]] || _oc_all_correct=false ;;
         *)
             [[ "$_ws_test_meta" == "false" ]] || _oc_all_correct=false ;;
@@ -377,6 +377,14 @@ assert_contains "$(declare -f _run_ws5_classroomioplus)" "DIR_CLASSROOMIOPLUS" \
 # _run_ws_floorp calls restore_floorp
 assert_contains "$(declare -f _run_ws_floorp)" "restore_floorp" \
     "_run_ws_floorp calls restore_floorp"
+
+# oc_server — server-only option (no terminal clients)
+assert_contains "${_WS_IDS[*]}" "oc_server" \
+    "_WS_IDS includes oc_server (server-only option)"
+assert_contains "$(declare -f _run_oc_server)" "OPCODE_SERVE_URL" \
+    "_run_oc_server references OPCODE_SERVE_URL"
+assert_contains "$(declare -f _run_oc_server)" "no clients" \
+    "_run_oc_server states it starts no clients"
 
 # _run_workspace_item uses dynamic dispatch (no case statement)
 assert_contains "$(declare -f _run_workspace_item)" '"_run_${id}"' \
