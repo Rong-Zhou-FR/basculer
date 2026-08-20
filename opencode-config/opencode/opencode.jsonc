@@ -39,6 +39,19 @@
       "url": "http://127.0.0.1:8124/mcp",
       "enabled": true
     },
+    "mediawiki-mcp-server": {
+      // Wikibase (wikibase.ronzz.org) read/write access via bot password
+      // (SeedBot@MCP). Config + credentials live outside the repo at
+      // ~/.config/mediawiki-mcp/ronzz-wikibase.json.
+      // https://github.com/ProfessionalWiki/MediaWiki-MCP-Server
+      "type": "local",
+      "command": ["npx", "-y", "@professional-wiki/mediawiki-mcp-server@latest"],
+      "environment": {
+        "CONFIG": "/home/rongzhou/.config/mediawiki-mcp/ronzz-wikibase.json"
+      },
+      "enabled": true,
+      "timeout": 30000
+    },
     "gortex": {
       // Gortex: single-binary Go daemon for multi-repo code intelligence.
       // One daemon for all repos (~64 MiB) vs serena's ~600 MB per instance.
@@ -194,8 +207,7 @@
       "~/.local/**": "allow",
       "~/.opencode/**": "allow",
       "~/kodo/**": "allow",
-      "~/.config/opencode/**": "allow",
-      "~/.config/lighterbird/**": "allow",
+      "~/.config/**": "allow",
       "**serena/**": "allow",
       "~/shared-ronzz-nextcloud/**": "allow",
       "~/.local/share/lighterbird/**": "allow",

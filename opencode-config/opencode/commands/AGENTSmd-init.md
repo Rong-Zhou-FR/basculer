@@ -5,7 +5,7 @@ agent: copilot
 
 ## TASKS:
 
-### Create AGENTS.md files
+### Create/update AGENTS.md files
 
 Fetch the templates and customise them:
 
@@ -13,8 +13,10 @@ Fetch the templates and customise them:
 - [Per-submodule `AGENTS.md`](https://raw.githubusercontent.com/Rong-Zhou-FR/ronAI/refs/heads/main/context-files/AGENTS-module-template.md)
   - one per submodule directory
 
+If an AGENTS.md already exists but does not conform to the template style, reorganise the content into the templates' style
+
 ### Enhance README.md
 
-The auto-generated README from `gh repo create` is minimal. Extend.
+Follow Github conventions
 
 ### commit, push, merge into main if not on main

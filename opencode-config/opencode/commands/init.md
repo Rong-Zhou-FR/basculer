@@ -3,7 +3,13 @@ description: scaffold project, create GitHub repo, push structure and AGENTS.md 
 agent: copilot
 ---
 
-Scaffold $1 as new GitHub project(s) — **ask for user confirmation at every decision point**. Do not proceed to the next step until the user explicitly approves the current one.
+# User requirement:
+
+$1
+
+## TODO
+
+Scaffold as new GitHub project(s) — **ask for user confirmation at every decision point**. Do not proceed to the next step until the user explicitly approves the current one.
 
 ## Principle
 

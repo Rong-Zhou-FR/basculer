@@ -1,21 +1,14 @@
 ---
-description: Give copilot context about a GitHub issue
+description: rewrite prose content
 agent: copilot
 ---
 
-We are working on rewriting $1, implemented at $2 as $3 implemented in $4.
-You should NOW:
+Rewrite/enhance $1 following [style guide](https://wikibase.ronzz.org/wiki/Help:Contributing/styleGuide)
 
-1. Consult ./AGENTS.md to understand global rewrite strategy and progress
-2. Consult relevant module AGENTS.md to understand scope of concerned module
-3. Ask @explore for a quick view on both the old implementation and the state of the new one
-4. propose concrete, delivrable, testable github issues to advance the rewrite, satisfying the following criteria:
+## Requirements
 
-- enhance modularity
-- increase performance
-- lean down code: when existing libraries already exist, we should use them instead of reinventing the wheel
-  - and reinventing wheel we did in the old implementation
-
-- if anything is not clear, consult relevant AGENTS.md. If it is still not clear, you do not hesitate before asking user
-
-
+- Study the style guide and the relevant examples attentively
+  - how the examples organize and present content ?
+  - what is the tone?
+  - how the sentences are structured? 
+- When unsure, ask user for direction

@@ -17,7 +17,7 @@ Debug $1
    - AGENTS.md requirements not meeting user expectation ?
      - in this case, STOP, brief user before moving onto 2.
 
-2. Perform a systematic review if the same root cause exists elsewhere in the codebase
+2. Perform a systematic review if the same root cause affects elsewhere in the codebase
    - Search for the same underlying pattern, not just the same error string
    - Create a github issue on the affected repo documenting the problem
      (symptoms, root cause, reproduction steps).
