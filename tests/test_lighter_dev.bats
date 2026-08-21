@@ -19,6 +19,7 @@
 #   - _cleanup_opencode_daemon keeps in-use servers, asks y/N before restart
 #   - _opencode_daemon_in_use detects attached clients via ESTAB connections
 #   - launch_opencode_daemon reuses a server kept by cleanup
+#   - _reload_opencode_daemon POSTs /global/dispose (no restart), keeps clients
 #   - _item_needs_opencode correctly identifies opencode items
 #   - Every CMD_OPENCODE / CMD_MASTER usage includes --dir
 #   - No stale gen_layout / LAYOUT_DIR references remain
@@ -79,6 +80,7 @@ assert_eq "0" "$?" "--help exit code"
 assert_contains "$help_out" "lighter-dev.bash" "shows script name"
 assert_contains "$help_out" "Alacritty+Zellij" "describes terminal stack"
 assert_contains "$help_out" "stop" "mentions stop command"
+assert_contains "$help_out" "reload" "mentions reload command"
 assert_contains "$help_out" "--dry-run" "mentions --dry-run flag"
 
 echo ""
@@ -231,6 +233,35 @@ assert_contains "$(declare -f _opencode_daemon_in_use)" "grep -o 'pid=" \
 # launch_opencode_daemon reuses a server kept by cleanup
 assert_contains "$(declare -f launch_opencode_daemon)" "OPCODE_DAEMON_ALREADY_RUNNING" \
     "launch_opencode_daemon reuses an existing server instead of starting a new one"
+
+# _reload_opencode_daemon — no-restart config reload via POST /global/dispose
+assert_contains "$(declare -f _reload_opencode_daemon)" "/global/dispose" \
+    "_reload_opencode_daemon POSTs /global/dispose"
+assert_contains "$(declare -f _reload_opencode_daemon)" "curl" \
+    "_reload_opencode_daemon uses curl"
+assert_contains "$(declare -f _reload_opencode_daemon)" "Reload opencode config now? [y/N]" \
+    "_reload_opencode_daemon asks y/N before reloading"
+assert_contains "$(declare -f _reload_opencode_daemon)" "In-flight LLM responses ARE interrupted" \
+    "_reload_opencode_daemon warns that in-flight responses are interrupted"
+assert_contains "$(declare -f _reload_opencode_daemon)" "attached clients stay connected" \
+    "_reload_opencode_daemon states clients stay connected"
+assert_contains "$(declare -f _reload_opencode_daemon)" "full restart" \
+    "_reload_opencode_daemon explains what still needs a full restart"
+assert_contains "$(declare -f _reload_opencode_daemon)" "nothing to reload" \
+    "_reload_opencode_daemon handles a stopped server gracefully"
+assert_contains "$(declare -f _reload_opencode_daemon)" "non-opencode process" \
+    "_reload_opencode_daemon refuses when the port is held by another process"
+# reload must NOT stop/restart the daemon
+assert_not_contains "$(declare -f _reload_opencode_daemon)" "_graceful_stop" \
+    "_reload_opencode_daemon never stops the server (no _graceful_stop)"
+assert_not_contains "$(declare -f _reload_opencode_daemon)" "kill " \
+    "_reload_opencode_daemon never kills the server"
+
+# main() dispatches reload
+assert_contains "$(declare -f main)" "reload | --reload" \
+    "main handles reload | --reload arguments"
+assert_contains "$(declare -f main)" "_reload_opencode_daemon" \
+    "main calls _reload_opencode_daemon for reload"
 
 # CMD_OPENCODE uses attach mode
 assert_contains "${CMD_OPENCODE}" "opencode attach" \

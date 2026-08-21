@@ -52,6 +52,9 @@
 #   ./lighter-dev.bash                launch the workspace (idempotent — skips active sessions;
 #                                     restarts an idle opencode server only with y/N consent)
 #   ./lighter-dev.bash stop           stop everything started by the script
+#   ./lighter-dev.bash reload         re-read config/commands/agents from disk WITHOUT
+#                                     restarting the server (POST /global/dispose;
+#                                     attached clients stay connected)
 #   ./lighter-dev.bash --help         show this message
 #   ./lighter-dev.bash --dry-run      preview without launching
 
@@ -641,6 +644,76 @@ launch_opencode_daemon() {
   return 1
 }
 
+# Reload the running opencode server's config WITHOUT restarting it.
+#
+# Sends POST /global/dispose to the server. This tells the server to tear
+# down all project instances (the in-memory copies of opencode.jsonc,
+# agents/*.md, commands/*.md, skills/*.md, plugins, MCP connections).
+# The next request to any project recreates that project's instance by
+# re-reading the files from disk — so config/command/agent edits take
+# effect without a server restart and without detaching clients.
+#
+# What it does NOT do (a full restart is still needed for these):
+#   - server-level flags: --port, hostname binding, --pure, log level
+#   - the opencode binary itself (upgrade / downgrade)
+#   - environment variables captured at process boot
+#   - provider/auth state cached at boot in the global config cache
+#
+# What the user should know (shown in the y/N prompt):
+#   - server process stays alive, attached clients stay connected
+#   - all projects re-read their config on next use (~instant, lazy)
+#   - in-flight LLM responses are interrupted
+_reload_opencode_daemon() {
+  local port_pid
+  port_pid=$(ss -tlnp 2>/dev/null |
+    grep -F ":${OPCODE_SERVE_PORT}" |
+    grep -o 'pid=[0-9][0-9]*' |
+    grep -o '[0-9][0-9]*' ||
+    true)
+  if [[ -z "$port_pid" ]]; then
+    log_warn "No opencode server on port ${OPCODE_SERVE_PORT} — nothing to reload."
+    log_warn "Start it first (e.g. select the 'OpenCode server only' item, or run without a subcommand)."
+    return 0
+  fi
+  if ! ps -p "$port_pid" -o comm= 2>/dev/null | grep -qxF 'opencode'; then
+    log_err "Port ${OPCODE_SERVE_PORT} is held by a non-opencode process (PID $port_pid)."
+    log_err "  Refusing to reload — start the opencode server manually."
+    return 1
+  fi
+
+  echo ""
+  echo "This reloads the opencode server's configuration WITHOUT restarting it:"
+  echo "  • The server re-reads opencode.jsonc, agents/, commands/ and skills/"
+  echo "    from disk for ALL projects (on next use of each project)."
+  echo "  • The server process stays alive and attached clients stay connected."
+  echo "  • New/edited commands, agents and config take effect immediately."
+  echo "  • In-flight LLM responses ARE interrupted."
+  echo "  • Server-level flags (--port, --pure, binary upgrade) still need"
+  echo "    a full restart."
+  local answer
+  read -r -p "Reload opencode config now? [y/N] " answer || true
+  echo ""
+  case "$answer" in
+  y | Y | yes | YES) ;;
+  *)
+    log_info "Reload cancelled — no changes made."
+    return 0
+    ;;
+  esac
+
+  log_info "Sending POST ${OPCODE_SERVE_URL}/global/dispose …"
+  local http_code
+  http_code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${OPCODE_SERVE_URL}/global/dispose" || true)
+  if [[ "$http_code" == "200" ]]; then
+    log_ok "Config reloaded — commands/agents/config are now re-read from disk."
+    log_info "If a client does not show new commands, re-open its command menu (or it picks them up on next request)."
+  else
+    log_err "Reload failed (HTTP ${http_code:-'no response'}). Server may not support /global/dispose."
+    log_err "Fall back to a full restart: systemctl --user stop opencode-serve && run this script again."
+    return 1
+  fi
+}
+
 # ── Workspace item registry ──────────────────────────────────────────
 # Add new items with _register_item, then implement _run_<id>().
 # Array order = menu order.  Metadata is kept in sync automatically.
@@ -989,6 +1062,10 @@ main() {
     _stop_workspace
     exit 0
     ;;
+  reload | --reload)
+    _reload_opencode_daemon
+    exit 0
+    ;;
   --help | -h)
     sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
     exit 0
@@ -1098,6 +1175,7 @@ main() {
       log_info "Kill daemon:      systemctl --user stop opencode-serve  (or: kill \$(cat ${OPCODE_DAEMON_PID_FILE}))"
       log_info "Stop everything:  ${SELF} stop"
       log_info "Restart daemon:   Re-run this script (asks y/N before restarting an idle server)"
+      log_info "Reload config:    ${SELF} reload  (re-read config/commands/agents — no restart, clients stay connected)"
       log_info "Daemon log:       ${OPCODE_DAEMON_LOG}"
     else
       log_ok "All selected items launched (opencode daemon was not started)."

@@ -71,6 +71,15 @@ Consequences:
 - **Do not tell users to "restart opencode" or "restart the client/TUI"** — that
   re-attaches to the same stale server. The correct fix is restarting the **server**
   (e.g. `opencode serve --port <port>`), not the client.
+- **No-restart workaround (verified on opencode 1.18.18): `POST /global/dispose`**
+  tells the running server to tear down all project instances; the next request
+  touching a project recreates its instance by re-reading `opencode.jsonc`,
+  `agents/*.md`, `commands/*.md`, `skills/*.md` and plugins from disk. Commands
+  added/edited on disk appear immediately. The server process and attached clients
+  stay up; in-flight LLM responses are interrupted. What it does NOT reload:
+  server-level flags (`--port`, `--pure`), the binary, env captured at boot, and
+  state cached at boot in the global config cache (use a full restart for those).
+  lighter-dev.bash exposes this as `./lighter-dev.bash reload` (y/N prompt).
 - **Symptom → fix**:
   - User reports "I changed the model/provider/permissions/MCP config but it's not working"
   - → First suspect a stale server. Invite the user to restart the server before

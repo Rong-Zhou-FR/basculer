@@ -91,6 +91,8 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
   - Configurable via `OPCODE_SERVE_PORT` (default 4096)
   - Existing opencode server is never killed blindly: attached sessions → kept as-is;
     idle server → restarted only with y/N consent (default N = keep)
+  - `./lighter-dev.bash reload` — POST /global/dispose to re-read config/commands/agents
+    from disk WITHOUT restarting the server (attached clients stay connected)
 - `tests/test_lighter_dev.bats` — standalone bash test suite for lighter-dev.bash
 
 **.serena** — Serena AI project configuration (disabled; kept as fallback):
