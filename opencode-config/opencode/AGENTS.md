@@ -39,6 +39,8 @@ You are a professional software engineer. Your primary goal is to help the user 
 - **"What would a user do manually?" is a powerful decomposition heuristic.** Before reaching for config files, layout engines, or batch APIs, ask: how would a human accomplish this step by step? The tool's CLI primitives often mirror manual actions directly. If a user can open a terminal and press Ctrl+Alt+T to create tabs, there is probably a CLI command that does the same thing.
 - **When the first fix fails, step back and reconsider the whole approach.** Patching symptoms (ANSI stripping, exit-code guards) of a fundamentally fragile design (multi-phase layout injection) wastes time on a lost cause. Identify the deeper problem and switch approaches entirely rather than layering more patches.
 - **Time-box third-party integration debugging.** When a check against a third-party component keeps failing, stop guessing after ~3 attempts: read the component's source and reference configuration, build a minimal reproduction, and isolate the mechanism. If still stuck, escalate — a documented warning, an upstream ticket, or a different approach — with a precise characterization of the failure. Blind iterations on an expensive feedback loop (CI runs, slow builds) are the costliest way to debug; reading the source usually takes minutes, not 20 round-trips.
+- **Instrument the running system before deep-reading dependency source.** When a failure defies static analysis, a few lines of `error_log`/print in the suspect method locate the fault line in one restart; reading the dependency's source can take hours without narrowing it. Runtime evidence beats source reading for fault location — read the source only to confirm the mechanism once the failing line is known.
+- **Complete a fresh environment's documented setup before debugging a flow failure.** Missing prerequisites (unpublished maps/config, absent vendor dependencies, disabled worker processes) documented in the environment's README masquerade as application bugs — verify the setup checklist before reading the application code.
 - **When applying a known fix pattern from a sister project, first understand WHY the pattern works in its original context.** Don't cargo-cult. The same primitive (`queueMicrotask` inside `$effect`) may be correct for one scenario (deferring a store write that can survive the effect scope) but wrong for another (where cleanup races with the deferred callback). Understand the timing guarantees of each primitive (`$effect` runs during mount flush; `onMount` runs after mount flush; `queueMicrotask` runs before the next microtask). Choosing incorrectly introduces race conditions. Before adapting: (1) identify the timing constraint the original fix resolved, (2) identify the timing constraint of your scenario, (3) verify the chosen primitive satisfies both.
 
 ### Maintain Standards
@@ -182,6 +184,12 @@ Use gortex when modifying code definitions:
   ```
   (Some projects provide a convenience script — e.g. `./scripts/test.sh` —
   that auto-detects the worktree and resolves the parent `.venv`.)
+
+  **Container tooling writes root-owned files**: composer/npm/pip run inside a
+  Docker container (`docker run -v "$PWD":/app ...`) creates root-owned files
+  in the bind-mounted worktree — chown right after
+  (`sudo chown -R $(id -un) <worktree>`), or the eventual worktree removal
+  will fail on them.
 
 ### Browser Tool
 
@@ -450,6 +458,14 @@ on cleanup procedures.
   session and can cause data loss or corruption. Always use `worktreeDelete` — it
   validates safety first, preserves session continuity, and defers directory removal
   until the next `worktreeCreate` call so no tools break mid-session.
+- **A failed `git worktree remove` leaves a half-removed state.** Removal
+  deregisters the worktree (admin entry + `.git` pointer) *before* deleting
+  the directory — a permission failure on root-owned files leaves the
+  directory present but unregistered, and a retry says "is not a working
+  tree". Verify with `git worktree list` + `git branch --list`, then
+  `sudo git worktree remove` (handles the root-owned files), or remove the
+  leftover directory + `git worktree prune`. Prefer the sanctioned worktree
+  tooling from a git repo CWD (the tools refuse non-git working directories).
 
 ### GitHub CLI (gh)
 
@@ -628,6 +644,13 @@ Every feature or fix that touches BOTH the backend and frontend (e.g., a new `!c
 - **Should**: Assert specific DOM elements (tab bar, role attributes, CSS classes, button text)
 - **Should**: Test keyboard navigation (open multi-tab, switch, close)
 - **Should**: Test empty states, form validation, and selection mode
+- **Treat the test suite as code under review**: when an assertion fails, verify the
+  helper's output shape and regex capture before blaming the code under test —
+  dict-vs-string term comparisons and regexes capturing the wrong group have
+  masqueraded as "feature broken" failures.
+- **No masking fallback branches**: helpers that resolve the outcome via a fallback
+  (e.g. "accept an Item: redirect OR a page redirect") let the wrong path pass —
+  assert explicitly which branch was taken.
 
 #### How to decide which layers
 1. **Backend-only change** (new service, DB migration, pure function): Only backend unit tests.
