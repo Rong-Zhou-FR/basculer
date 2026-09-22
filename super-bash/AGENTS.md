@@ -9,6 +9,9 @@ super-bash/
 ├── bash-dev.bash              # Development helpers
 ├── bash-autish.bash           # Automation/shell utilities
 ├── bash-text-opt.bash         # Text processing utilities
+├── installation/              # Standalone one-click installers
+│   ├── thunderbird.sh
+│   └── open-design.sh
 ├── functions/                 # Modular per‑domain function files
 │   ├── A-semantika-nodo-aldoni.bash   # Wrappers for A semantika nodo aldoni
 │   ├── A-semantika-arko-aldoni.bash   # Wrapper for A semantika arko aldoni
@@ -25,6 +28,7 @@ super-bash/
 | bash-dev.bash | Development commands (git, docker, etc.) |
 | bash-autish.bash | Shell automation functions |
 | bash-text-opt.bash | Text processing/optimization |
+| installation/ | Standalone distro installers (Debian Linux) |
 | functions/ | Per‑domain function files (sourced individually) |
 
 ## Configuration
@@ -34,6 +38,8 @@ super-bash/
 ## Dependencies
 - bash 4.0+
 - Standard GNU tools (grep, sed, awk, etc.)
+- `installation/` scripts are standalone and may use `curl`, `apt-get`, `sudo`,
+  and network access; the sourced bash utilities stay pure bash.
 
 ## Integration Points
 - Can be sourced from any bashrc/profile
