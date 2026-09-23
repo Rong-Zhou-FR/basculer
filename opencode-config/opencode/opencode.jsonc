@@ -1,13 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "copilot",
-  // Default model for all agents — DigitalOcean direct, bypassing OpenRouter
-  // (OpenRouter has been flaky; DigitalOcean OAuth is already in auth.json).
-  // Agents that need something different override with their own "model" key.
-  "model": "digitalocean/deepseek-v4-flash-0731",
-  // Lightweight tasks (title generation, etc.) — use opencode's free model
-  // instead of auto-deriving a small model from the main provider's pool.
-  "small_model": "opencode/deepseek-v4-flash-free",
   "plugin": ["opencode-notify",
     "./plugins/opencode-worktree-enhanced/index.ts",
     // "./plugins/opencode-metasearch2/index.ts",  // disabled: brave-search is always available (#5)
@@ -43,9 +35,13 @@
       // Wikibase (wikibase.ronzz.org) read/write access via bot password
       // (SeedBot@MCP). Config + credentials live outside the repo at
       // ~/.config/mediawiki-mcp/ronzz-wikibase.json.
-      // https://github.com/ProfessionalWiki/MediaWiki-MCP-Server
+      // Fork of ProfessionalWiki/MediaWiki-MCP-Server with the
+      // EmbeddableContent + WikibaseCitation extension packs:
+      // https://github.com/Ron-RONZZ-org/mediawiki-mcp-server
+      // (clone: ~/shared-ronzz-nextcloud/docs/IT/mediawiki-mcp-server;
+      // rebuild with `npm run build` there after upstream merges.)
       "type": "local",
-      "command": ["npx", "-y", "@professional-wiki/mediawiki-mcp-server@latest"],
+      "command": ["node", "/home/rongzhou/shared-ronzz-nextcloud/docs/IT/mediawiki-mcp-server/dist/index.js"],
       "environment": {
         "CONFIG": "/home/rongzhou/.config/mediawiki-mcp/ronzz-wikibase.json"
       },
@@ -220,6 +216,14 @@
     }
   },
 
+  "default_agent": "copilot",
+  // Default model for all agents — DigitalOcean direct, bypassing OpenRouter
+  // (OpenRouter has been flaky; DigitalOcean OAuth is already in auth.json).
+  // Agents that need something different override with their own "model" key.
+  "model": "deepseek/deepseek-v4-flash",
+  // Lightweight tasks (title generation, etc.) — use opencode's free model
+  // instead of auto-deriving a small model from the main provider's pool.
+  "small_model": "opencode/deepseek-v4-flash-free",
   "agent": {
     // All agents default to the global "model" above. Only exceptions
     // override it here (githubber, huggingfacer). copilot/auditor/architect/
