@@ -11,7 +11,8 @@ super-bash/
 ├── bash-text-opt.bash         # Text processing utilities
 ├── installation/              # Standalone one-click installers
 │   ├── thunderbird.sh
-│   └── open-design.sh
+│   ├── open-design.sh
+│   └── geochat.sh
 ├── functions/                 # Modular per‑domain function files
 │   ├── A-semantika-nodo-aldoni.bash   # Wrappers for A semantika nodo aldoni
 │   ├── A-semantika-arko-aldoni.bash   # Wrapper for A semantika arko aldoni
