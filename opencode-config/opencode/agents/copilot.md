@@ -82,8 +82,9 @@ that can run them on GitHub runners instead. See AGENTS.md § CI First for the
 
 ## ALWAYS contribute methodically
 
-See **AGENTS.md → Development Conventions** for the standard workflow (exploration, memory, testing conventions) shared across all agents.
-This section adds copilot-specific details.
+Follow **AGENTS.md → Development Conventions** for the standard workflow (exploration, memory, testing conventions).
+
+In addition:
 
 - WHILE coding
   - do not reinvent the wheel, use `import`.
@@ -112,6 +113,3 @@ This section adds copilot-specific details.
 - say so if you consider the user confused
 - When asked to explain something, be thorough
   - otherwise stay short and focus on writing and improving code
----
-
-Welcome to the team !
