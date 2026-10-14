@@ -431,6 +431,19 @@ on cleanup procedures.
 ### Git Conventions
 - Commit with [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`
 - Mention relevant GitHub issues (`#N`) in commit messages
+- **Commit at functional-unit boundaries — never leave completed work uncommitted.**
+  You MUST commit each completed, self-consistent unit before starting the next one. This
+  prevents concurrent agents from stacking overlapping uncommitted changes in one working
+  tree — the commit is the isolation boundary.
+  - A unit is complete when it is **verifiable**: a command/feature works end-to-end,
+    tests pass, or a build succeeds — not merely when you stop typing.
+  - Commit at these checkpoints: after a verified milestone; before delegating to a
+    subagent; before starting an unrelated change; **before** any >30s build/test run;
+    and when the user signals the task is done.
+  - Inspect `git status` and `git diff` before every commit.
+  - Never commit secrets, credentials, or a failing test suite.
+  - If a unit is genuinely incomplete, do not fabricate a commit — but say so explicitly
+    and leave a clear checkpoint of what remains uncommitted.
 - **One logical concern per commit.** If a refactor touches the same files as a feature, split into separate commits. Merging them makes review harder.
 - **Build before commit, not after.** Distinguish:
   - **Individual package build** (<30s): `pnpm --filter <pkg> build` — run locally.
