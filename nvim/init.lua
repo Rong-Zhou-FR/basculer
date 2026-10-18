@@ -175,4 +175,5 @@ vim.api.nvim_create_autocmd("BufWritePost", {  -- Note: Post, not Pre
 })
 
 require('markdown').setup()
+require('wikitextFix').setup()
 vim.keymap.set('i', '<C-d>', '<C-o>dw')  -- Ctrl+d deletes word after cursor
