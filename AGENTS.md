@@ -74,6 +74,7 @@ See [espanso/AGENTS.md](./espanso/AGENTS.md).
 - `init.lua` — entry point (options, keymaps, user commands, lazy.nvim setup)
 - `lua/markdown.lua` — markdown utilities (comma-list-to-bullets `:CM` command)
 - `after/ftplugin/enc.lua` — filetype overrides for `.enc` files
+- `after/ftplugin/mediawiki.lua` — disables Neovim's built-in section folding for `.wiki` files
 - `lazy-lock.json` — plugin lockfile (Comment.nvim, lazy.nvim)
 
 **0-1** — Zero-to-One structured planning documents. Each document walks through: real-world problem → ideal state → concrete steps → evaluation with self & peer review.
