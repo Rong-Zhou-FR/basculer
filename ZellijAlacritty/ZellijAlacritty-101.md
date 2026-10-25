@@ -224,7 +224,10 @@ Press `Ctrl t` then `n`:
 - `Ctrl t` enters **tab mode**
 - `n` = new tab
 - `Tab` / arrows = switch tabs
+- `H` / `L` = move the current tab left / right
 - `x` = close tab
+
+To reorder tabs without entering tab mode, press `Alt i` / `Alt o` (move the active tab left / right). Zellij's status bar does **not** list either binding, so they are easy to miss — and tabs cannot be dragged with the mouse.
 
 #### Detach and re-attach (persistent session)
 
@@ -256,7 +259,7 @@ Zellij is modal (like vim). The default modes:
 |------|-------|---------|
 | **Normal** | `Ctrl g` | Default — arrow keys navigate panes |
 | **Pane** | `Ctrl p` | Split, close, move, resize panes |
-| **Tab** | `Ctrl t` | Create, switch, close tabs |
+| **Tab** | `Ctrl t` | Create, switch, reorder, close tabs |
 | **Resize** | `Ctrl n` | Resize the focused pane |
 | **Move** | `Ctrl p` then hold `Shift` + arrows | Move panes around |
 | **Scroll** | `Ctrl s` | Scroll pane history, search |
@@ -275,6 +278,8 @@ Zellij is modal (like vim). The default modes:
 | `Ctrl t` `n` | New tab |
 | `Ctrl t` `x` | Close tab |
 | `Ctrl t` `<number>` | Go to tab N |
+| `Ctrl t` `H` / `Ctrl t` `L` | Move the active tab left / right |
+| `Alt i` / `Alt o` | Move the active tab left / right (works from any mode) |
 | `Ctrl g` | Back to normal mode |
 | `Ctrl s` | Enter scroll mode, then `j`/`k` to scroll, `/` to search |
 | `Ctrl o` `d` | Detach session |

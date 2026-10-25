@@ -271,6 +271,12 @@ keybinds {
         unbind "Ctrl p"
         unbind "Ctrl n"
     }
+    tab {
+        // Reorder the active tab. Alt i / Alt o do the same from any mode,
+        // but zellij's status bar never hints at them, so keep these too.
+        bind "H" { MoveTab "left"; }
+        bind "L" { MoveTab "right"; }
+    }
 }
 ZELLIJ_KDL
 
